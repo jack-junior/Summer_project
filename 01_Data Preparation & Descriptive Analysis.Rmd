@@ -1,0 +1,415 @@
+---
+title: "Modeling Functional Attrition and Quality-of-Life Dynamics in Oncology: A
+  Three-State Multi-State and Predictive Approach (NCT02349412)"
+author: "GAYI KOMI SELASSI"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# *===========================================*
+# *1. Data Preparation & Descriptive Analysis* 
+# *===========================================*
+
+### 1. *Importation and variables selection*
+
+```{r import_data, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+library(tableone)
+library(broom)
+
+# Create output folder
+outdir <- "Data_Preparation_&_Descriptive_output"
+dir.create(outdir, showWarnings = FALSE)
+
+# Import dataset
+data <- read.csv("dataset_merged.csv", stringsAsFactors = FALSE)
+
+# Select variables of interest
+data_main <- data[, c(
+  "patref", "wk12_dead", "wk24_dead",
+  "fact_chg12", "fact_chg24",
+  "hads_anx_chg12", "hads_dep_chg12",
+  "n12", "n12_grp",
+  "fact_bl", "hads_pt_anx_bl", "hads_pt_dep_bl",
+  "age", "sex", "ecogps", "tumrtyp", "cgpart",
+  "race1", "ptethncty", "pthighedu", "ptmargstat",
+  "ptrelgn", "sitetype", "arm", "bsl_assess_complete",
+  "ptpqpt1_grp", "ptpqpt7_grp", "ptpqpt9e_grp",
+  "ptpqpt11_grp", "ptpqpt12_grp"
+)]
+
+glimpse(data_main)
+
+```
+
+
+
+### *2. Assessment of the Missing Data Rate*
+
+```{r missingness_check, message=FALSE, warning=FALSE}
+
+missing_pct <- sapply(data_main, function(x) mean(is.na(x)) * 100)
+missing_table <- data.frame(
+  Variable = names(missing_pct),
+  Missing_Percent = round(missing_pct, 2)
+) %>%
+  arrange(desc(Missing_Percent))
+
+kable(missing_table, caption = "Percentage of Missing Values per Variable") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+
+### *3. Cleaning and Harmonization of Variable Types*
+
+```{r}
+# Replace ">90" in age and convert to numeric
+data_main$age <- as.character(data_main$age)
+data_main$age[data_main$age == ">90"] <- "90"
+data_main$age <- as.numeric(data_main$age)
+
+# Remove rows with ≤2 non-missing variables (essentially empty)
+data_main <- data_main %>% 
+  mutate(non_missing = rowSums(!is.na(.))) %>%
+  filter(non_missing > 2) %>%
+  select(-non_missing)
+
+# Convert all character columns to factor, replacing "" by NA
+char_vars <- names(data_main)[sapply(data_main, is.character)]
+for (v in char_vars) {
+  data_main[[v]][data_main[[v]] == ""] <- NA
+  data_main[[v]] <- as.factor(data_main[[v]])
+}
+
+# Specific factor conversions
+data_main$arm <- factor(data_main$arm)
+data_main$wk12_dead <- factor(data_main$wk12_dead)
+data_main$wk24_dead <- factor(data_main$wk24_dead)
+#data_main$ecogps <- factor(data_main$ecogps)
+```
+
+```{r}
+glimpse(data_main)
+```
+
+
+### *4. **Recoding of Derived Variables (Education, Race, Marital Status)*
+
+```{r}
+data_main <- data_main %>%
+  mutate(
+    edu_cat = case_when(
+      pthighedu %in% c("8th grade or less", "9-11th grade") ~ "Low",
+      pthighedu %in% c("High school graduate/GED", "Vocational/technical school") ~ "High school",
+      pthighedu %in% c("Associate degree/some college", "Bachelor's degree", "Advanced degree") ~ "College+",
+      TRUE ~ NA_character_),
+    marital_cat = case_when(
+      ptmargstat %in% c("Married", "Domestic partnership") ~ "Married/Partnered",
+      ptmargstat %in% c("Never married", "Divorced", "Separated", "Widowed") ~ "Not married",
+      TRUE ~ NA_character_),
+    race_cat = case_when(
+      race1 == "White" ~ "White",
+      race1 == "Black or African American" ~ "Black",
+      race1 == "Asian" ~ "Asian",
+      race1 %in% c("American Indian or Alaska Native", "Native Hawaiian or Other Pacific Islander") ~ "Minority",
+      TRUE ~ NA_character_)
+  )
+
+data_main <- data_main %>%
+  mutate(
+    edu_cat = factor(edu_cat, levels = c("College+", "High school", "Low")),
+    marital_cat = factor(marital_cat),
+    race_cat = factor(race_cat)
+  )
+```
+
+
+
+
+### *5. Definition of Multi-Time States (A, F, D)*
+
+- A (Active): Alive and completed QoL questionnaire.
+
+- F (Attrition): Alive, but missing QoL questionnaire.
+
+- D (Death): Dead (absorbing).
+
+```{r define_states, message=FALSE, warning=FALSE}
+# Restrict to baseline completers
+data_main <- subset(data_main, bsl_assess_complete == 1)
+
+# Define functional states
+data_main <- data_main %>%
+  mutate(
+    state_t0 = "A",
+    state_t12 = ifelse(wk12_dead == "1", "D",
+                       ifelse(!is.na(fact_chg12), "A", "F")),
+    state_t24 = ifelse(wk24_dead == "1", "D",
+                       ifelse(!is.na(fact_chg24), "A", "F"))
+  )
+
+data_main <- data_main %>%
+  mutate(
+    state_t0 = factor(state_t0, levels = c("A", "F", "D")),
+    state_t12 = factor(state_t12, levels = c("A", "F", "D")),
+    state_t24 = factor(state_t24, levels = c("A", "F", "D"))
+  )
+```
+
+
+
+### *6. missingness Analysis  (week 12 & 24)
+
+```{r missingness_model, message=FALSE, warning=FALSE}
+
+data_main <- data_main %>%
+  mutate(
+    missing12 = ifelse(state_t12 == "F", 1, 0),
+    missing24 = ifelse(state_t24 == "F", 1, 0),
+    sitetype2 = factor(ifelse(is.na(sitetype), "Unknown", as.character(sitetype)),
+                       levels = c("Academic", "Community", "Unknown"))
+  )
+
+miss_preds <- c("age","sex","ecogps","fact_bl","hads_pt_anx_bl","hads_pt_dep_bl",
+                "tumrtyp","arm","edu_cat","race_cat","n12","cgpart","sitetype2")
+
+# Missingness model week 12
+glm_miss12 <- glm(as.formula(paste("missing12 ~", paste(miss_preds, collapse = " + "))),
+                  data = data_main, family = binomial)
+tidy_miss12 <- tidy(glm_miss12, exponentiate = TRUE, conf.int = TRUE) %>%
+  select(term, estimate, conf.low, conf.high, p.value)
+
+kable(tidy_miss12, digits = 3,
+      caption = "Predictors of Missingness at Week 12 (OR, 95% CI, p)") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+write.csv(tidy_miss12, file = file.path(outdir, "missingness12_ORs.csv"), row.names = FALSE)
+
+# Missingness model week 24
+glm_miss24 <- glm(as.formula(paste("missing24 ~", paste(miss_preds, collapse = " + "))),
+                  data = data_main, family = binomial)
+tidy_miss24 <- tidy(glm_miss24, exponentiate = TRUE, conf.int = TRUE) %>%
+  select(term, estimate, conf.low, conf.high, p.value)
+
+kable(tidy_miss24, digits = 3,
+      caption = "Predictors of Missingness at Week 24 (OR, 95% CI, p)") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+write.csv(tidy_miss24, file = file.path(outdir, "missingness24_ORs.csv"), row.names = FALSE)
+
+```
+
+
+
+### *7. Flow of patients between states (transition counts from T0→T12 and T12→T24).*
+
+
+```{r transitions, message=FALSE, warning=FALSE}
+tab_t0_t12 <- table(data_main$state_t0, data_main$state_t12)
+prop_t0_t12 <- prop.table(tab_t0_t12, margin = 1)
+tab_fmt_t0_t12 <- matrix(
+  paste0(tab_t0_t12, " (", round(100*prop_t0_t12, 1), "%)"),
+  nrow = nrow(tab_t0_t12), dimnames = dimnames(tab_t0_t12)
+)
+
+kable(tab_fmt_t0_t12, caption = "Transition T0 → T12 (n, %)") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+tab_t12_t24 <- table(data_main$state_t12, data_main$state_t24)
+prop_t12_t24 <- prop.table(tab_t12_t24, margin = 1)
+tab_fmt_t12_t24 <- matrix(
+  paste0(tab_t12_t24, " (", round(100*prop_t12_t24, 1), "%)"),
+  nrow = nrow(tab_t12_t24), dimnames = dimnames(tab_t12_t24)
+)
+
+kable(tab_fmt_t12_t24, caption = "Transition T12 → T24 (n, %)") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+write.csv(tab_t0_t12, file.path(outdir, "Transition_T0_T12.csv"))
+write.csv(tab_t12_t24, file.path(outdir, "Transition_T12_T24.csv"))
+
+```
+
+
+*patients' flow diagram*
+
+```{r multi_state_diagram_dynamic, message=FALSE, warning=FALSE}
+
+library(DiagrammeR)
+library(DiagrammeRsvg)
+library(rsvg)
+library(glue)
+
+# === 1. Calcul des transitions réelles ===
+# T0 -> T12
+tab_t0_t12 <- table(data_main$state_t0, data_main$state_t12)
+prop_t0_t12 <- prop.table(tab_t0_t12, margin = 1) * 100
+
+n_T0A_T12A <- tab_t0_t12["A","A"]; p_T0A_T12A <- round(prop_t0_t12["A","A"],1)
+n_T0A_T12D <- tab_t0_t12["A","D"]; p_T0A_T12D <- round(prop_t0_t12["A","D"],1)
+n_T0A_T12F <- tab_t0_t12["A","F"]; p_T0A_T12F <- round(prop_t0_t12["A","F"],1)
+
+# T12 -> T24
+tab_t12_t24 <- table(data_main$state_t12, data_main$state_t24)
+prop_t12_t24 <- prop.table(tab_t12_t24, margin = 1) * 100
+
+n_T12A_T24A <- tab_t12_t24["A","A"]; p_T12A_T24A <- round(prop_t12_t24["A","A"],1)
+n_T12A_T24D <- tab_t12_t24["A","D"]; p_T12A_T24D <- round(prop_t12_t24["A","D"],1)
+n_T12A_T24F <- tab_t12_t24["A","F"]; p_T12A_T24F <- round(prop_t12_t24["A","F"],1)
+
+n_T12D_T24D <- tab_t12_t24["D","D"]; p_T12D_T24D <- round(prop_t12_t24["D","D"],1)
+
+n_T12F_T24A <- tab_t12_t24["F","A"]; p_T12F_T24A <- round(prop_t12_t24["F","A"],1)
+n_T12F_T24D <- tab_t12_t24["F","D"]; p_T12F_T24D <- round(prop_t12_t24["F","D"],1)
+n_T12F_T24F <- tab_t12_t24["F","F"]; p_T12F_T24F <- round(prop_t12_t24["F","F"],1)
+
+# === 2. Construction des labels dynamiques ===
+lbl_T0A_T12A <- glue("{n_T0A_T12A} ({p_T0A_T12A}%)")
+lbl_T0A_T12D <- glue("{n_T0A_T12D} ({p_T0A_T12D}%)")
+lbl_T0A_T12F <- glue("{n_T0A_T12F} ({p_T0A_T12F}%)")
+
+lbl_T12A_T24A <- glue("{n_T12A_T24A} ({p_T12A_T24A}%)")
+lbl_T12A_T24D <- glue("{n_T12A_T24D} ({p_T12A_T24D}%)")
+lbl_T12A_T24F <- glue("{n_T12A_T24F} ({p_T12A_T24F}%)")
+
+lbl_T12D_T24D <- glue("{n_T12D_T24D} ({p_T12D_T24D}%)")
+
+lbl_T12F_T24A <- glue("{n_T12F_T24A} ({p_T12F_T24A}%)")
+lbl_T12F_T24D <- glue("{n_T12F_T24D} ({p_T12F_T24D}%)")
+lbl_T12F_T24F <- glue("{n_T12F_T24F} ({p_T12F_T24F}%)")
+
+# === 3. Création du graphe dynamique ===
+graph_code <- glue("
+digraph multi_state {{
+  graph [layout = dot, rankdir = LR]
+
+  node [style = filled, fontsize = 12, fontname = Helvetica, penwidth = 1.5]
+  edge [fontsize = 11, fontname = Helvetica, penwidth = 1.2, color = gray40]
+
+  # États T0
+  T0A [label = 'T0: A', shape = box, fillcolor = lightblue, color = navy]
+
+  # États T12
+  T12A [label = 'T12: A', shape = box, fillcolor = lightblue, color = navy]
+  T12D [label = 'T12: D', shape = diamond, fillcolor = lightpink, color = firebrick]
+  T12F [label = 'T12: F', shape = ellipse, fillcolor = lightgoldenrod, color = goldenrod4]
+
+  # États T24
+  T24A [label = 'T24: A', shape = box, fillcolor = lightblue, color = navy]
+  T24D [label = 'T24: D', shape = diamond, fillcolor = lightpink, color = firebrick]
+  T24F [label = 'T24: F', shape = ellipse, fillcolor = lightgoldenrod, color = goldenrod4]
+
+  # Transitions T0 → T12
+  T0A -> T12A [label = '{lbl_T0A_T12A}', color = navy, fontcolor = navy]
+  T0A -> T12D [label = '{lbl_T0A_T12D}', color = firebrick, fontcolor = firebrick]
+  T0A -> T12F [label = '{lbl_T0A_T12F}', color = goldenrod4, fontcolor = goldenrod4]
+
+  # Transitions T12 → T24
+  T12A -> T24A [label = '{lbl_T12A_T24A}', color = navy, fontcolor = navy]
+  T12A -> T24D [label = '{lbl_T12A_T24D}', color = firebrick, fontcolor = firebrick]
+  T12A -> T24F [label = '{lbl_T12A_T24F}', color = goldenrod4, fontcolor = goldenrod4]
+
+  T12D -> T24D [label = '{lbl_T12D_T24D}', color = firebrick, fontcolor = firebrick]
+
+  T12F -> T24A [label = '{lbl_T12F_T24A}', color = navy, fontcolor = navy]
+  T12F -> T24D [label = '{lbl_T12F_T24D}', color = firebrick, fontcolor = firebrick]
+  T12F -> T24F [label = '{lbl_T12F_T24F}', color = goldenrod4, fontcolor = goldenrod4]
+}}
+")
+
+# === 4. Afficher le graphe dans le rapport ===
+multi_state_graph <- grViz(graph_code)
+multi_state_graph
+
+# === 5. Exporter en PNG ===
+grViz_svg <- export_svg(grViz(graph_code))
+rsvg_png(charToRaw(grViz_svg), file.path(outdir, "multi_state_diagram_dynamic.png"))
+
+message("✅ Diagramme multi-état dynamique exporté dans: ", file.path(outdir, "multi_state_diagram_dynamic.png"))
+
+```
+
+
+
+### 8. Baseline characteristics (global and by attrition status)
+
+```{r baseline_tables, message=FALSE, warning=FALSE}
+
+vars <- c("age","sex","ecogps","fact_bl","hads_pt_anx_bl","hads_pt_dep_bl",
+          "tumrtyp","arm","edu_cat","race_cat","marital_cat","n12","cgpart")
+
+tab_overall <- CreateTableOne(vars = vars, data = data_main)
+tab_by_t12 <- CreateTableOne(vars = vars, strata = "state_t12", data = data_main, addOverall = TRUE)
+tab_by_t24 <- CreateTableOne(vars = vars, strata = "state_t24", data = data_main, addOverall = TRUE)
+
+kable(as.data.frame(print(tab_overall, printToggle = FALSE)), 
+      caption = "Baseline Characteristics — Overall") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+kable(as.data.frame(print(tab_by_t12, printToggle = FALSE)),
+      caption = "Baseline Characteristics by State (Week 12)") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+kable(as.data.frame(print(tab_by_t24, printToggle = FALSE)),
+      caption = "Baseline Characteristics by State (Week 24)") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+write.csv(as.data.frame(print(tab_overall, printToggle = FALSE)), file = file.path(outdir, "Table1_Overall.csv"))
+write.csv(as.data.frame(print(tab_by_t12, printToggle = FALSE)), file = file.path(outdir, "Table1_By_T12.csv"))
+write.csv(as.data.frame(print(tab_by_t24, printToggle = FALSE)), file = file.path(outdir, "Table1_By_T24.csv"))
+
+```
+
+
+
+
+
+### 9. *Save final dataset*
+```{r save_clean_dataset, message=FALSE, warning=FALSE}
+
+# === Sauvegarde du dataset final nettoyé ===
+
+# Chemin de sauvegarde
+saveRDS(data_main, file = file.path(outdir, "data_main_clean_final.rds"))
+write.csv(data_main, file = file.path(outdir, "data_main_clean_final.csv"), row.names = FALSE)
+
+```
+
+**Mains Output** :
+
+- `Data_Preparation_&_Descriptive_output/missingness12_ORs.csv`  
+- `Data_Preparation_&_Descriptive_output/missingness24_ORs.csv`  
+- `Data_Preparation_&_Descriptive_output/Transition_T0_T12.csv`  
+- `Data_Preparation_&_Descriptive_output/Transition_T12_T24.csv` 
+- `Data_Preparation_&_Descriptive_output/Transition_diagram.png`
+- `Data_Preparation_&_Descriptive_output/Table1_Overall.csv`  
+- `Data_Preparation_&_Descriptive_output/Table1_By_T12.csv`  
+- `Data_Preparation_&_Descriptive_output/Table1_By_T24.csv`
+- `Data_Preparation_&_Descriptive_output/data_main_clean_final.rds`
+- `Data_Preparation_&_Descriptive_output/data_main_clean_final.rds`
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

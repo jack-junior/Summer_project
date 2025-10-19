@@ -1,0 +1,1339 @@
+---
+title: "\"Modeling Functional Attrition and Quality-of-Life Dynamics in Oncology:
+  A Three-State Multi-State and Predictive Approach (NCT02349412)"
+author: "GAYI KOMI SELASSI"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# *===========================================*
+# *2.Prediction et comparaison MICE & IPCW* 
+# *===========================================*
+
+
+### *1. Import and data preparation*
+
+
+
+```{r}
+data_main_clean <- readRDS("Data_Preparation_&_Descriptive_output/data_main_clean_pred.rds")
+
+```
+
+
+
+
+```{r}
+# Remove rows with missing values in specific variables
+data_main_clean <- data_main_clean[!is.na(data_main_clean$edu_cat) &
+                                   !is.na(data_main_clean$race_cat) &
+                                   !is.na(data_main_clean$marital_cat), ]
+
+#glimpse(data_main_clean)
+```
+
+
+
+### *2. Modelisation with IPCW*
+
+*Setup & paramètres*
+```{r warning=FALSE}
+library(dplyr); library(ggplot2); library(caret); library(glmnet)
+library(ranger); library(xgboost); library(pROC); library(tidyr); library(flextable)
+library(xtable); library(doParallel)
+
+outdir <- "outputs_prediction_IPCW"
+dir.create(outdir, showWarnings = FALSE)
+
+set.seed(123)
+n_splits <- 20        # nombre de splits 80/20 (génère distribution des metrics)
+ncores <- parallel::detectCores() - 1
+registerDoParallel(cores = ncores)
+
+thresholds <- c(0, -5, -7, -10)
+models_to_run <- c("glmnet","rf","xgb")
+
+```
+
+
+*IPCW : estimation, stabilisation, troncatures & diagnostics (plus comparaison de troncatures)*
+
+```{r}
+# Estimation des poids IPCW et diagnostics (plus test de plusieurs troncatures)
+df_w24 <- data_main_clean %>%
+  dplyr::select(patref, state_t24, fact_chg24, everything())
+
+df_w24 <- df_w24 %>% mutate(R24 = ifelse(!is.na(fact_chg24), 1, 0))
+
+# Modèle baseline pour p_obs (documenter la formule)
+modR_glm <- glm(R24 ~ age + ecogps + fact_bl + n12 + sex + tumrtyp,
+                data = df_w24, family = binomial)
+
+df_w24$p_obs_glm <- predict(modR_glm, type = "response")
+
+# Poids stabilisés (initial)
+df_w24 <- df_w24 %>%
+  mutate(weight_ipcw = ifelse(R24 == 1, 1 / p_obs_glm, NA))
+
+mean_pobs_obs <- mean(df_w24$p_obs_glm[df_w24$R24 == 1], na.rm = TRUE)
+df_w24 <- df_w24 %>%
+  mutate(weight_ipcw = ifelse(R24==1, weight_ipcw * mean_pobs_obs, NA))
+
+# Fonction trimming / troncature paramétrable (percentiles)
+trim_weights <- function(w, low = 0.01, high = 0.99) {
+  ql <- quantile(w, probs = low, na.rm = TRUE)
+  qh <- quantile(w, probs = high, na.rm = TRUE)
+  w_t <- pmin(pmax(w, ql), qh)
+  return(w_t)
+}
+
+# Tester plusieurs troncatures et calculer ESS pour chacune
+trunc_options <- list(c(0.01,0.99), c(0.05,0.95), c(0.10,0.90))
+trunc_res <- list()
+for (t in trunc_options) {
+  w_t <- df_w24$weight_ipcw
+  w_t[!is.na(w_t)] <- trim_weights(w_t[!is.na(w_t)], low = t[1], high = t[2])
+  ess <- (sum(w_t, na.rm=TRUE)^2) / sum((w_t^2), na.rm = TRUE)
+  trunc_res[[paste0("p",t[1]*100,"_",t[2]*100)]] <- list(trunc = t, ess = ess,
+                                                         summary = summary(w_t),
+                                                         quantiles = quantile(w_t, probs = seq(0,1,0.05), na.rm=TRUE))
+  # save histogram
+  png(file.path(outdir, paste0("weights_hist_p",t[1]*100,"_",t[2]*100,".png")), width=700, height=500)
+  hist(w_t[!is.na(w_t)], breaks=40, main=paste0("Weights histogram (", t[1]," - ", t[2],")"),
+       xlab="Truncated IPCW", col="steelblue")
+  dev.off()
+}
+
+# Choose a default truncation to use downstream (document choice)
+# ici on choisit 1-99% (conservateur), tu peux changer après revue des histogrammes
+df_w24$weight_ipcw_trunc <- NA
+df_w24$weight_ipcw_trunc[df_w24$R24==1] <-
+  trim_weights(df_w24$weight_ipcw[df_w24$R24==1], low=0.01, high=0.99)
+
+# ESS final & summary
+ess_final <- (sum(df_w24$weight_ipcw_trunc, na.rm=TRUE)^2) / sum(df_w24$weight_ipcw_trunc^2, na.rm=TRUE)
+cat("ESS after truncation (1-99%):", round(ess_final,1), "\n")
+write.csv(do.call(rbind, lapply(trunc_res, function(x) {
+  data.frame(ess = x$ess)
+})), file.path(outdir,"truncation_ess_summary.csv"), row.names = TRUE)
+
+# Save model summary for modR_glm
+capture.output(summary(modR_glm), file = file.path(outdir,"modR_glm_summary.txt"))
+
+```
+
+```{r}
+# ===============================
+# Diagnostics ESS + résumé par troncature (avec NA)
+# ===============================
+
+compute_diagnostics_df <- function(weights, lower, upper) {
+  # Compter NA
+  n_na <- sum(is.na(weights))
+  
+  # Appliquer troncature
+  qlow <- quantile(weights, lower, na.rm=TRUE)
+  qhigh <- quantile(weights, upper, na.rm=TRUE)
+  w_trunc <- pmin(pmax(weights, qlow), qhigh)
+  
+  # ESS
+  ess <- (sum(w_trunc, na.rm=TRUE))^2 / sum(w_trunc^2, na.rm=TRUE)
+  
+  # Résumés
+  summ <- as.numeric(summary(w_trunc))
+  
+  data.frame(
+    Truncation = paste0(lower*100,"-",upper*100,"%"),
+    ESS = round(ess,1),
+    Min = round(summ[1],3),
+    Q1 = round(summ[2],3),
+    Median = round(summ[3],3),
+    Mean = round(summ[4],3),
+    Q3 = round(summ[5],3),
+    Max = round(summ[6],3),
+    N_NA = n_na
+  )
+}
+
+# Tester plusieurs bornes
+diag_table <- dplyr::bind_rows(
+  compute_diagnostics_df(df_w24$weight_ipcw, 0.01, 0.99),
+  compute_diagnostics_df(df_w24$weight_ipcw, 0.05, 0.95),
+  compute_diagnostics_df(df_w24$weight_ipcw, 0.10, 0.90)
+)
+
+library(knitr)
+library(kableExtra)
+
+diag_table %>%
+  kbl(caption = "Diagnostics of IPCW weights under different truncation bounds") %>%
+  kable_classic(full_width = FALSE, html_font = "Times New Roman") %>%
+  column_spec(1, bold = TRUE) %>%
+  column_spec(2:8, width = "6em") %>%
+  column_spec(9, color = "red", bold = TRUE)
+
+
+# Sauvegarde CSV pour rapport
+write.csv(diag_table, "IPCW_diagnostics_summary.csv", row.names=FALSE)
+
+```
+ 
+ *Bloc C — Repeated random splits (80/20)*
+```{r}
+# =====================================================
+# BLOC C : repeated 80/20 splits -> fold-by-fold metrics
+# + ajout CI 95% des AUC et comparaisons DeLong / Bootstrap ΔAUC
+# =====================================================
+
+recompute_weights_on_train <- TRUE
+results_rows <- list()
+all_importances <- list()
+
+for (thr in thresholds) {
+  cat("=== Threshold", thr, "===\n")
+  
+  df_thr0 <- df_w24 %>%
+    mutate(fact_chg24_bin = ifelse(!is.na(fact_chg24) & fact_chg24 <= thr, 1,
+                            ifelse(!is.na(fact_chg24), 0, NA))) %>%
+    filter(!is.na(fact_chg24_bin))
+  
+  if(sum(df_thr0$fact_chg24_bin==1, na.rm=TRUE) < 5) {
+    cat("Too few events for threshold", thr, "- skipping\n")
+    next
+  }
+  
+  predictors_w24 <- c("age", "sex", "ecogps", "fact_bl", "tumrtyp", "arm", "cgpart",
+                      "hads_pt_anx_bl","hads_pt_dep_bl", "edu_cat")
+  predictors_w24 <- predictors_w24[predictors_w24 %in% colnames(df_thr0)]
+  
+  for (s in 1:n_splits) {
+    set.seed(1000 + s + as.integer(thr*10))
+    idx <- createDataPartition(df_thr0$fact_chg24_bin, p = 0.8, list = FALSE)
+    train_df <- df_thr0[idx, ]
+    test_df  <- df_thr0[-idx, ]
+    
+    if(recompute_weights_on_train) {
+      modR_train <- glm(R24 ~ age + ecogps + fact_bl + n12 + sex + tumrtyp,
+                        data = data.frame(train_df), family = binomial)
+      p_obs_train <- predict(modR_train, type="response", newdata = train_df)
+      train_df$w <- ifelse(train_df$R24==1, (1/p_obs_train) * mean(p_obs_train, na.rm=TRUE), NA)
+      p_obs_test <- predict(modR_train, type="response", newdata=test_df)
+      test_df$w <- ifelse(test_df$R24==1, (1/p_obs_test) * mean(p_obs_train, na.rm=TRUE), NA)
+      qlow <- quantile(c(train_df$w, test_df$w), 0.10, na.rm = TRUE)
+      qhigh <- quantile(c(train_df$w, test_df$w), 0.90, na.rm = TRUE)
+      train_df$w[!is.na(train_df$w)] <- pmin(pmax(train_df$w[!is.na(train_df$w)], qlow), qhigh)
+      test_df$w[!is.na(test_df$w)]  <- pmin(pmax(test_df$w[!is.na(test_df$w)], qlow), qhigh)
+    } else {
+      train_df$w <- train_df$weight_ipcw_trunc
+      test_df$w <- test_df$weight_ipcw_trunc
+    }
+    
+    model_train <- train_df %>% select(all_of(c("fact_chg24_bin", predictors_w24, "w")))
+    model_test  <- test_df  %>% select(all_of(c("fact_chg24_bin", predictors_w24, "w")))
+    
+    model_train$fact_chg24_bin <- factor(model_train$fact_chg24_bin, levels = c(0,1), labels = c("no","yes"))
+    model_test$fact_chg24_bin <- factor(model_test$fact_chg24_bin, levels = c(0,1), labels = c("no","yes"))
+    
+    ctrl <- trainControl(method = "cv", number = 5, classProbs = TRUE,
+                         summaryFunction = twoClassSummary, savePredictions = "final", allowParallel = TRUE)
+    
+    grid_glmnet <- expand.grid(alpha = 1, lambda = 10^seq(-4, 0, length = 20))
+    fit_glmnet <- tryCatch(
+      train(fact_chg24_bin ~ ., data = model_train %>% select(-w),
+            method = "glmnet", metric = "ROC", trControl = ctrl,
+            preProcess = c("center","scale"), tuneGrid = grid_glmnet,
+            weights = model_train$w),
+      error = function(e) { message("glmnet error: ", e); NULL }
+    )
+    
+    fit_rf <- tryCatch(
+      train(fact_chg24_bin ~ ., data = model_train %>% select(-w),
+            method = "ranger", metric = "ROC", trControl = ctrl,
+            tuneLength = 5, importance = "impurity", weights = model_train$w),
+      error = function(e) { message("rf error: ", e); NULL }
+    )
+    
+    fit_xgb <- tryCatch(
+      train(fact_chg24_bin ~ ., data = model_train %>% select(-w),
+            method = "xgbTree", metric = "ROC", trControl = ctrl,
+            tuneLength = 4, weights = model_train$w),
+      error = function(e) { message("xgb error: ", e); NULL }
+    )
+    
+    model_list <- list(glmnet = fit_glmnet, rf = fit_rf, xgb = fit_xgb)
+    for (mname in names(model_list)) {
+      fit <- model_list[[mname]]
+      if(is.null(fit)) {
+        results_rows[[length(results_rows)+1]] <- data.frame(
+          Threshold = thr, Split = s, Model = mname,
+          AUC = NA, AUC_low = NA, AUC_high = NA,
+          Brier = NA, Slope = NA,
+          Events = sum(model_test$fact_chg24_bin=="yes"),
+          n_test = nrow(model_test)
+        )
+        next
+      }
+      pred_prob <- predict(fit, newdata = model_test %>% select(-w), type = "prob")[,"yes"]
+      y_test <- ifelse(model_test$fact_chg24_bin == "yes", 1, 0)
+      w_test <- model_test$w
+      
+      # ROC + CI95%
+      roc_obj <- tryCatch(roc(model_test$fact_chg24_bin, pred_prob, weights = w_test), error = function(e) NULL)
+      if(!is.null(roc_obj)){
+        auc_val <- auc(roc_obj)
+        ci_obj <- ci.auc(roc_obj, conf.level=0.95)
+        auc_low <- ci_obj[1]
+        auc_high <- ci_obj[3]
+      } else {
+        auc_val <- NA; auc_low <- NA; auc_high <- NA
+      }
+      
+      # Brier
+      brier_val <- if(!all(is.na(pred_prob))) weighted.mean((pred_prob - y_test)^2, w = w_test, na.rm = TRUE) else NA
+      
+      # Calibration slope
+      eps <- 1e-6
+      lp <- qlogis(pmin(pmax(pred_prob, eps), 1-eps))
+      calib_mod <- tryCatch(glm(y_test ~ lp, family = binomial, weights = w_test), error = function(e) NULL)
+      slope_val <- if(!is.null(calib_mod)) coef(calib_mod)[2] else NA
+      
+      # Importance
+      varimp_df <- NULL
+      if(mname == "glmnet" && !is.null(fit)) {
+        lambda_best <- fit$bestTune$lambda
+        coefs <- as.matrix(coef(fit$finalModel, s = lambda_best))
+        varimp_df <- data.frame(Variable = rownames(coefs),
+                                Coefficient = as.numeric(coefs)) %>%
+          dplyr::filter(Variable != "(Intercept)" & Coefficient != 0)
+      } else if(mname %in% c("rf","xgb") && !is.null(fit)) {
+        varimp_df <- varImp(fit)$importance %>%
+          tibble::rownames_to_column("Variable") %>%
+          rename(Importance = Overall)
+      }
+      all_importances[[paste0("thr",thr,"_split",s,"_",mname)]] <- varimp_df
+      
+      results_rows[[length(results_rows)+1]] <- data.frame(
+        Threshold = thr, Split = s, Model = mname,
+        AUC = as.numeric(auc_val),
+        AUC_low = as.numeric(auc_low),
+        AUC_high = as.numeric(auc_high),
+        Brier = as.numeric(brier_val),
+        Slope = as.numeric(slope_val),
+        Events = sum(model_test$fact_chg24_bin=="yes"),
+        n_test = nrow(model_test)
+      )
+    }
+  }
+}
+
+results_df_splits <- bind_rows(results_rows)
+write.csv(results_df_splits, file.path(outdir,"results_splits_fold_by_fold_CI.csv"), row.names = FALSE)
+saveRDS(all_importances, file = file.path(outdir,"varimp_all_splits_CI.rds"))
+
+
+
+```
+
+
+```{r}
+# BLOC D : résumé mediane / IQR + boxplots / heatmap
+library(ggplot2); library(dplyr); library(tidyr)
+
+res_summary <- results_df_splits %>%
+  group_by(Threshold, Model) %>%
+  summarise(
+    AUC_median = median(AUC, na.rm=TRUE),
+    AUC_IQR = IQR(AUC, na.rm=TRUE),
+    Brier_median = median(Brier, na.rm=TRUE),
+    Brier_IQR = IQR(Brier, na.rm=TRUE),
+    Slope_median = median(Slope, na.rm=TRUE),
+    Slope_IQR = IQR(Slope, na.rm=TRUE),
+    n_splits = n(),
+    median_events = median(Events, na.rm=TRUE),
+    .groups = "drop"
+  )
+
+write.csv(res_summary, file.path(outdir,"summary_median_IQR_1.csv"), row.names = FALSE)
+
+# Boxplots AUC
+ggplot(results_df_splits, aes(x=factor(Threshold), y=AUC, fill=Model)) +
+  geom_boxplot() + labs(title="AUC by Threshold and Model (repeated splits)", x="Threshold", y="AUC") +
+  theme_minimal(base_size=13)
+ggsave(file.path(outdir,"AUC_boxplot_repeated_splits_1.png"), width=8, height=5)
+
+# Boxplots Brier
+ggplot(results_df_splits, aes(x=factor(Threshold), y=Brier, fill=Model)) +
+  geom_boxplot() + labs(title="Brier by Threshold and Model (repeated splits)", x="Threshold", y="Brier") +
+  theme_minimal(base_size=13)
+ggsave(file.path(outdir,"Brier_boxplot_repeated_splits_1.png"), width=8, height=5)
+
+# Slopes boxplot with reference line
+ggplot(results_df_splits, aes(x=factor(Threshold), y=Slope, fill=Model)) +
+  geom_boxplot() + geom_hline(yintercept=1, linetype="dashed", color="red") +
+  labs(title="Calibration slope by Threshold and Model (repeated splits)", x="Threshold", y="Slope") +
+  theme_minimal(base_size=13)
+ggsave(file.path(outdir,"Slope_boxplot_repeated_splits_1.png"), width=8, height=5)
+
+# Heatmap of medians
+res_long <- res_summary %>%
+  pivot_longer(cols = c(AUC_median, Brier_median, Slope_median), names_to = "Metric", values_to = "Value")
+
+ggplot(res_long, aes(x=factor(Threshold), y=Model, fill=Value)) +
+  geom_tile(color="white") +
+  facet_wrap(~Metric, scales="free") +
+  geom_text(aes(label = round(Value,2))) +
+  labs(title="Median performance by Threshold and Model", x="Threshold", y="Model") +
+  theme_minimal(base_size=12)
+ggsave(file.path(outdir,"Median_heatmap_1.png"), width=10, height=6)
+```
+
+```{r}
+saveRDS(all_importances, file = file.path(outdir,"varimp_all_splits_1.rds"))
+```
+
+```{r}
+all_importances <- readRDS(file.path(outdir,"varimp_all_splits_1.rds"))
+
+# transformer la liste en un tableau harmonisé
+varimp_df <- bind_rows(
+  lapply(names(all_importances), function(name) {
+    df <- all_importances[[name]]
+    if (is.null(df) || nrow(df) == 0) return(NULL)
+    df$Run <- name
+    
+    # harmoniser les colonnes
+    if ("Coefficient" %in% names(df)) {
+      df <- df %>% rename(Importance = Coefficient)
+    }
+    df
+  })
+)
+
+# Séparer infos du nom
+varimp_df <- varimp_df %>%
+  tidyr::separate(Run, into = c("thr", "split", "model"), sep = "_", remove = FALSE)
+
+# Résumé
+summary_varimp <- varimp_df %>%
+  group_by(thr, model, Variable) %>%
+  summarise(
+    MedianImportance = median(abs(Importance), na.rm = TRUE),
+    IQRImportance = IQR(abs(Importance), na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  arrange(thr, model, desc(MedianImportance))
+
+
+```
+
+
+
+
+```{r}
+library(knitr)
+library(kableExtra)
+
+# tableau publication ready
+summary_varimp %>%
+  mutate(
+    MedianImportance = round(MedianImportance, 3),
+    IQRImportance = round(IQRImportance, 3)
+  ) %>%
+  arrange(thr, model, desc(MedianImportance)) %>%
+  kable(
+    format = "html",  # mets "latex" si tu compiles en PDF
+    booktabs = TRUE,
+    caption = "Variable Importance Across Thresholds and Models",
+    col.names = c("Threshold", "Model", "Variable", "Median |Importance|", "IQR |Importance|")
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+    full_width = FALSE,
+    font_size = 12
+  ) %>%
+  collapse_rows(columns = c(1, 2), valign = "top")
+
+
+```
+
+
+
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Renommer la variable trop longue
+summary_varimp <- summary_varimp %>%
+  mutate(Variable = ifelse(Variable == "tumrtypHepatic/Biliary/Pancreatic/Unknown primary",
+                           "tumrtypHepat/Bili/pan/prim",
+                           Variable))
+
+# Créer les plots pour chaque seuil (thr)
+plots <- lapply(unique(summary_varimp$thr), function(threshold) {
+  df_thr <- filter(summary_varimp, thr == threshold)
+  
+  ggplot(df_thr, aes(x = MedianImportance,
+                     y = reorder(Variable, MedianImportance),
+                     color = model)) +
+    geom_point(size = 3) +
+    geom_errorbarh(aes(xmin = MedianImportance - IQRImportance/2,
+                       xmax = MedianImportance + IQRImportance/2),
+                   height = 0.2, alpha = 0.6) +
+    labs(
+      title = paste("Variable Importance IPCW analysis (Thr:", threshold, ")"),
+      x = "Median Importance (± IQR)",
+      y = "Variables",
+      color = "Model"
+    ) +
+    theme_minimal(base_size = 14) +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold"),
+      axis.title.x = element_text(face = "bold"),
+      axis.title.y = element_text(face = "bold"),
+      legend.position = "bottom"
+    )
+})
+
+# afficher les 4 premiers plots
+plots[[1]]
+plots[[2]]
+plots[[3]]
+plots[[4]]
+
+```
+
+
+
+
+ 
+ 
+ 
+ 
+ 
+ *Bloc E: MICE et prediction*
+
+```{r}
+# ===============================
+# Imputation multiple avec méthodes adaptées
+# ===============================
+
+library(mice)
+library(dplyr)
+
+set.seed(123)
+
+# ⚠️ Retirer identifiants avant imputation
+df_imp <- data_main_clean %>%
+  dplyr::select(-patref)   # enlève l'identifiant
+
+# Vérifier les types
+str(df_imp)
+
+# Initialisation
+ini <- mice(df_imp, maxit = 0, printFlag = FALSE)
+meth <- ini$method
+pred <- ini$predictorMatrix
+
+# Boucle automatique selon type de variable
+for (v in names(df_imp)) {
+  if (is.numeric(df_imp[[v]]) & length(unique(df_imp[[v]])) > 2) {
+    meth[v] <- "pmm"       # numérique continu
+  } else if (is.factor(df_imp[[v]]) & nlevels(df_imp[[v]]) == 2) {
+    meth[v] <- "logreg"    # facteur binaire
+  } else if (is.factor(df_imp[[v]]) & nlevels(df_imp[[v]]) > 2) {
+    meth[v] <- "polyreg"   # facteur multicatégoriel
+  } else if (is.numeric(df_imp[[v]]) & length(unique(df_imp[[v]])) == 2) {
+    meth[v] <- "logreg"    # binaire encodé en 0/1 mais stocké comme numeric
+  }
+}
+
+# (Optionnel) Bloquer certaines colonnes comme prédicteurs si nécessaire
+# pred[,"sex"] <- 0
+
+# Vérifier configuration
+meth
+head(pred)
+
+# Imputation multiple (⚡ m=15 imputations)
+imp <- mice(df_imp, m = 15, method = meth, predictorMatrix = pred,
+            maxit = 10, seed = 123, printFlag = TRUE)
+
+# Inspecter
+imp
+summary(imp)
+
+```
+
+```{r}
+saveRDS(imp, "imp_check2.rds")
+
+```
+
+
+
+```{r}
+all.equal(readRDS("imp_check.rds"), readRDS("imp_check2.rds"))
+
+```
+
+
+
+```{r}
+# ===============================
+# Post-imputation: Nested CV across imputations (parallel over imputations)
+# ===============================
+
+library(caret)
+library(glmnet)
+library(ranger)
+library(xgboost)
+library(pROC)
+library(doParallel)
+library(foreach)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+set.seed(123)
+
+# -------------------------------
+# Params (adaptable)
+m_imp <- if (exists("imp")) imp$m else 15   # si imp existe, utilise imp$m sinon 15
+outer_k <- 5
+inner_k <- 3
+thresholds <- c(0, -5, -7, -10)
+ncores <- max(1, parallel::detectCores() - 1)
+outdir <- "results_prediction_MICE"
+dir.create(outdir, showWarnings = FALSE)
+
+# -------------------------------
+# Build list of imputed datasets if not already
+if (!exists("imputed_list")) {
+  if (!exists("imp")) stop("Object 'imp' not found. Run mice() first or provide imputed_list.")
+  imputed_list <- lapply(1:imp$m, function(i) complete(imp, action = i))
+}
+
+# -------------------------------
+# quick checks / predictors
+# adapt predictors if necessary (they must exist in imputed datasets)
+predictors <- c("age", "sex", "ecogps", "fact_bl", "tumrtyp", "arm", "cgpart", "hads_pt_anx_bl","hads_pt_dep_bl", "edu_cat")
+# ensure predictors exist in dataset
+missing_preds <- setdiff(predictors, names(imputed_list[[1]]))
+if (length(missing_preds) > 0) stop("Missing predictors in data: ", paste(missing_preds, collapse = ", "))
+
+# -------------------------------
+# safe_train wrapper (no stop on error). NOTE: disable caret parallel inside to avoid nested parallel.
+safe_train <- function(formula, data, method, trControl, tuneGrid=NULL, preProc=NULL, weights=NULL, ...) {
+  out <- tryCatch({
+    train(formula,
+          data = data,
+          method = method,
+          metric = "ROC",
+          trControl = trControl,
+          tuneGrid = tuneGrid,
+          preProcess = preProc,
+          ...)
+  }, error = function(e) {
+    message("train ERROR (", method, "): ", e$message)
+    return(NULL)
+  }, warning = function(w) {
+    message("train WARNING (", method, "): ", w$message)
+    invokeRestart("muffleWarning")
+  })
+  return(out)
+}
+
+# -------------------------------
+# Fonction pour extraire l’importance des variables de façon robuste
+get_varimp <- function(fit, model_name) {
+  vim <- tryCatch(varImp(fit), error = function(e) NULL)
+  if (is.null(vim)) return(NULL)
+  
+  df <- NULL
+  if ("importance" %in% names(vim)) {
+    # cas glmnet (renvoie importance dans $importance)
+    df <- vim$importance %>%
+      tibble::rownames_to_column("Variable") %>%
+      rename(Importance = Overall)
+  } else if ("Overall" %in% names(vim)) {
+    # cas ranger, xgbTree (renvoie directement une colonne Overall)
+    df <- vim %>%
+      tibble::rownames_to_column("Variable") %>%
+      rename(Importance = Overall)
+  }
+  df
+}
+
+# -------------------------------
+# nested eval function (corrigée)
+nested_cv_eval <- function(df, outcome_var = "fact_chg24_bin", predictors,
+                           outer_k = 5, inner_k = 3, seed = 123) {
+  set.seed(seed)
+  n_events <- sum(df[[outcome_var]] == "yes", na.rm = TRUE)
+  outer_k_use <- ifelse(n_events < 30, 3, outer_k)
+  
+  # ensure outcome is factor with levels no/yes
+  df[[outcome_var]] <- factor(df[[outcome_var]], levels = c("no","yes"))
+  outer_folds <- createFolds(df[[outcome_var]], k = outer_k_use, returnTrain = FALSE)
+  
+  res_list <- list(); fid <- 0
+  
+  for (i in seq_along(outer_folds)) {
+    test_idx <- outer_folds[[i]]
+    train_df <- df[-test_idx, , drop = FALSE]
+    test_df  <- df[test_idx, , drop = FALSE]
+    fid <- fid + 1
+    
+    # skip if class absent in train/test
+    if (length(unique(train_df[[outcome_var]])) < 2 || length(unique(test_df[[outcome_var]])) < 2) {
+      message("Skipping outer fold ", i, " (class absent in train or test)")
+      next
+    }
+    
+    # inner ctrl
+    ctrl <- trainControl(method = "cv", number = inner_k,
+                         classProbs = TRUE, summaryFunction = twoClassSummary,
+                         savePredictions = "final", allowParallel = FALSE)
+    
+    fmla <- as.formula(paste(outcome_var, "~", paste(predictors, collapse = "+")))
+    
+    # LASSO
+    grid_glmnet <- expand.grid(alpha = 1, lambda = 10^seq(-3, 0, length = 10))
+    fit_glmnet <- safe_train(fmla, train_df, method = "glmnet", trControl = ctrl,
+                             tuneGrid = grid_glmnet, preProc = c("center","scale"))
+    
+    # RF
+    grid_rf <- expand.grid(mtry = max(1, floor(length(predictors)/3)), splitrule="gini", min.node.size=5)
+    fit_rf <- safe_train(fmla, train_df, method = "ranger", trControl = ctrl, tuneGrid = grid_rf, importance = "impurity"
+)
+    
+    # XGB
+    grid_xgb <- expand.grid(nrounds = 100, max_depth = 3, eta = 0.05, gamma = 0,
+                            colsample_bytree = 0.8, min_child_weight = 1, subsample = 0.8)
+    fit_xgb <- safe_train(fmla, train_df, method = "xgbTree", trControl = ctrl, tuneGrid = grid_xgb)
+    
+    models <- list(glmnet = fit_glmnet, rf = fit_rf, xgb = fit_xgb)
+    
+    for (mname in names(models)) {
+      fit <- models[[mname]]
+      
+      if (is.null(fit)) {
+        res_list[[length(res_list)+1]] <- data.frame(Fold=fid, Model=mname, AUC=NA_real_, Brier=NA_real_, Slope=NA_real_)
+        next
+      }
+      
+      # prédictions
+      pred_prob <- tryCatch(predict(fit, newdata = test_df, type = "prob")[, "yes"],
+                            error = function(e) { message("predict error: ", e$message); return(rep(NA_real_, nrow(test_df))) })
+      ytest <- ifelse(test_df[[outcome_var]] == "yes", 1, 0)
+      
+      # AUC
+      if (length(unique(ytest)) < 2 || all(is.na(pred_prob))) {
+        aucval <- NA_real_
+      } else {
+        rocobj <- tryCatch(roc(test_df[[outcome_var]], pred_prob, quiet = TRUE),
+                           error = function(e) { message("roc error: ", e$message); return(NULL) })
+        aucval <- if (is.null(rocobj)) NA_real_ else as.numeric(auc(rocobj))
+      }
+      
+      # Brier
+      brier <- tryCatch(mean((pred_prob - ytest)^2, na.rm = TRUE), error = function(e) NA_real_)
+      
+      # slope
+      eps <- 1e-6
+      pred_clip <- pmin(pmax(pred_prob, eps), 1-eps)
+      logit_pred <- qlogis(pred_clip)
+      slope <- tryCatch({
+        cm <- suppressWarnings(glm(ytest ~ logit_pred, family = binomial))
+        as.numeric(coef(cm)[2])
+      }, error = function(e) NA_real_)
+      
+      res_list[[length(res_list)+1]] <- data.frame(Fold=fid, Model=mname, AUC=aucval, Brier=brier, Slope=slope)
+      
+      # importance variables
+      varimp_df <- get_varimp(fit, mname)
+      if (!is.null(varimp_df)) {
+        varimp_df$Fold <- fid
+        varimp_df$Model <- mname
+        varimp_df$Threshold <- thr
+        varimp_df$Imputation <- imp_i
+        saveRDS(varimp_df, file = file.path(
+          outdir, paste0("varimp_thr",thr,"_",mname,"_imp",imp_i,"_fold",fid,".rds")
+        ))
+      }
+    }
+  }
+  
+  if (length(res_list) == 0) return(NULL)
+  bind_rows(res_list)
+}
+
+
+# -------------------------------
+# Parallel over imputations using foreach %dopar%
+cl <- makeCluster(ncores)
+registerDoParallel(cl)
+cat("Running over", ncores, "cores (one imputation per worker)\n")
+
+
+all_runs <- foreach(imp_i = seq_along(imputed_list), 
+                    .packages = c("dplyr","caret","glmnet","ranger","xgboost","pROC"), 
+                    .combine = "bind_rows") %dopar% {
+  dat_imp <- imputed_list[[imp_i]]
+  res_imp_allthr <- list()
+  
+  for (thr in thresholds) {
+    dat_work <- dat_imp %>%
+      mutate(fact_chg24_bin = ifelse(fact_chg24 <= thr, 1, 0),
+             fact_chg24_bin = factor(fact_chg24_bin, levels = c(0,1), labels = c("no","yes"))) %>%
+      filter(!is.na(fact_chg24_bin))
+    
+    # 🔎 DEBUG : afficher la distribution outcome par imputation et seuil
+    message("Imputation ", imp_i, " | Threshold ", thr, " | Distribution:")
+    message(capture.output(print(table(dat_work$fact_chg24_bin))))
+    
+    if (nrow(dat_work) < 30) {
+      message("⚠️ Imputation ", imp_i, " threshold ", thr, ": n < 30, skipping")
+      next
+    }
+    
+    res_df <- nested_cv_eval(dat_work, outcome_var = "fact_chg24_bin", predictors = predictors,
+                             outer_k = outer_k, inner_k = inner_k, seed = 1000 + imp_i)
+    
+    if (!is.null(res_df)) {
+      res_df$Imputation <- imp_i
+      res_df$Threshold <- thr
+      res_imp_allthr[[length(res_imp_allthr)+1]] <- res_df
+    }
+  }
+  
+  if (length(res_imp_allthr) == 0) NULL else bind_rows(res_imp_allthr)
+                    }
+
+
+# stop cluster
+stopCluster(cl); registerDoSEQ()
+
+# -------------------------------
+# Save raw results
+if (is.null(all_runs) || nrow(all_runs) == 0) {
+  stop("No results returned: possibly all datasets were too small or all folds skipped.")
+}
+write.csv(all_runs, file = file.path(outdir, "nested_results_all_imputations.csv"), row.names = FALSE)
+
+# -------------------------------
+# Summary median + IQR per Threshold x Model
+summary_df <- all_runs %>%
+  group_by(Threshold, Model) %>%
+  summarise(
+    AUC_median = median(AUC, na.rm = TRUE),
+    AUC_IQR = IQR(AUC, na.rm = TRUE),
+    Brier_median = median(Brier, na.rm = TRUE),
+    Brier_IQR = IQR(Brier, na.rm = TRUE),
+    Slope_median = median(Slope, na.rm = TRUE),
+    Slope_IQR = IQR(Slope, na.rm = TRUE),
+    n_folds = sum(!is.na(AUC)),
+    .groups = "drop"
+  )
+
+write.csv(summary_df, file = file.path(outdir, "summary_median_IQR.csv"), row.names = FALSE)
+print(summary_df)
+
+# -------------------------------
+# Plots (boxplots)
+p_auc <- ggplot(all_runs, aes(x = Model, y = AUC, fill = Model)) +
+  geom_boxplot() + facet_wrap(~Threshold) +
+  theme_minimal(base_size = 13) + ggtitle("AUC distribution by Model and Threshold")
+ggsave(filename = file.path(outdir, "AUC_boxplots.png"), plot = p_auc, width = 10, height = 6)
+
+p_brier <- ggplot(all_runs, aes(x = Model, y = Brier, fill = Model)) +
+  geom_boxplot() + facet_wrap(~Threshold) +
+  theme_minimal(base_size = 13) + ggtitle("Brier distribution by Model and Threshold")
+ggsave(filename = file.path(outdir, "Brier_boxplots.png"), plot = p_brier, width = 10, height = 6)
+
+p_slope <- ggplot(all_runs, aes(x = Model, y = Slope, fill = Model)) +
+  geom_boxplot() + facet_wrap(~Threshold) +
+  theme_minimal(base_size = 13) + ggtitle("Calibration slope distribution by Model and Threshold")
+ggsave(filename = file.path(outdir, "Slope_boxplots.png"), plot = p_slope, width = 10, height = 6)
+
+cat("DONE — results and plots saved in:", outdir, "\n")
+
+
+# Heatmap of medians
+res_long_2 <- summary_df %>%
+  pivot_longer(cols = c(AUC_median, Brier_median, Slope_median), names_to = "Metric", values_to = "Value")
+
+ggplot(res_long_2, aes(x=factor(Threshold), y=Model, fill=Value)) +
+  geom_tile(color="white") +
+  facet_wrap(~Metric, scales="free") +
+  geom_text(aes(label = round(Value,2))) +
+  labs(title="Median performance by Threshold and Model", x="Threshold", y="Model") +
+  theme_minimal(base_size=12)
+ggsave(file.path(outdir,"Median_heatmap_2.png"), width=10, height=6)
+```
+
+
+
+
+
+```{r}
+files <- list.files(outdir, pattern="varimp_.*rds", full.names=TRUE)
+varimp_all <- bind_rows(lapply(files, readRDS))
+
+summary_varimp_mice <- varimp_all %>%
+  group_by(Threshold, Model, Variable) %>%
+  summarise(MedianImportance = median(Importance, na.rm=TRUE),
+            IQRImportance = IQR(Importance, na.rm=TRUE),
+            .groups="drop")
+
+```
+
+```{r}
+library(knitr)
+library(kableExtra)
+
+summary_varimp_mice %>%
+  arrange(Model, Threshold, desc(MedianImportance)) %>%
+  kbl(caption = "Variable importance across models and thresholds",
+      digits = 3, 
+      col.names = c("Threshold", "Model", "Variable", "Median Importance", "IQR Importance")) %>%
+  collapse_rows(columns = c(1, 2), valign = "top") %>%  # groupe Threshold et Model
+  kable_styling(full_width = TRUE, 
+                bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+
+
+```
+
+
+```{r}
+library(stringr)
+
+files <- list.files(outdir, pattern = "varimp_.*rds", full.names = TRUE)
+table(sapply(files, function(f) str_extract(f, "_(glmnet|rf|xgb)_")))
+
+```
+
+
+```{r}
+library(ggplot2)
+library(stringr)
+
+# renommer pour correspondre aux colonnes existantes
+summary_varimp <- summary_varimp_mice
+#summary_varimp$Variable <- str_wrap(summary_varimp$Variable, width = 15)
+summary_varimp <- summary_varimp %>%
+  mutate(Variable = ifelse(Variable == "tumrtypHepatic/Biliary/Pancreatic/Unknown primary",
+                           "tumrtypHepat/Bili/pan/prim",  # nom plus court
+                           Variable))
+
+# boucle sur chaque Threshold et créer un plot
+plots <- lapply(unique(summary_varimp$Threshold), function(thr) {
+  df_thr <- subset(summary_varimp, Threshold == thr)
+  
+  ggplot(df_thr, aes(x = MedianImportance,
+                     y = reorder(Variable, MedianImportance),
+                     color = Model)) +
+    geom_point(size = 3) +
+    geom_errorbarh(aes(xmin = MedianImportance - IQRImportance/2,
+                       xmax = MedianImportance + IQRImportance/2),
+                   height = 0.2, alpha = 0.6) +
+    labs(title = paste("Variable Importance MICE analysis (Thr:", thr, ")"),
+         x = "Median Importance ± IQR",
+         y = "Variables",
+         color = "Model") +
+    theme_minimal(base_size = 14) +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold"),
+      axis.title.x = element_text(face = "bold"),
+      axis.title.y = element_text(face = "bold"),
+      legend.position = "bottom"
+    )
+})
+
+# Afficher tous les plots
+for (i in seq_along(plots)) {
+  print(plots[[i]])
+}
+
+# Optionnel : sauvegarder les plots
+outdir <- "results_impute_nested"
+dir.create(outdir, showWarnings = FALSE)
+for (i in seq_along(plots)) {
+  ggsave(filename = file.path(outdir, paste0("varimp_plot_threshold_", unique(summary_varimp$Threshold)[i], ".png")),
+         plot = plots[[i]], width = 10, height = 6)
+}
+
+
+```
+
+```{r}
+# ===============================
+# Rubin pooling of metrics (AUC, Brier, Slope)
+# ===============================
+
+# Function to pool one metric (vector of per-fold values by imputation)
+rubin_pool <- function(results_df, metric = "AUC") {
+  pooled_list <- list()
+  for (thr in unique(results_df$Threshold)) {
+    for (mod in unique(results_df$Model)) {
+      sub <- results_df %>% filter(Threshold == thr, Model == mod)
+      if (nrow(sub) == 0) next
+      # split by imputation
+      imp_groups <- split(sub[[metric]], sub$Imputation)
+      m <- length(imp_groups)
+      if (m < 2) next
+      Q_i <- sapply(imp_groups, mean, na.rm=TRUE)     # mean per imputation
+      U_i <- sapply(imp_groups, function(x) var(x, na.rm=TRUE)/length(na.omit(x))) # var/ni
+      Q_bar <- mean(Q_i, na.rm=TRUE)
+      U <- mean(U_i, na.rm=TRUE)
+      B <- var(Q_i, na.rm=TRUE)
+      T <- U + (1+1/m)*B
+      se <- sqrt(T)
+      lower <- Q_bar - 1.96*se
+      upper <- Q_bar + 1.96*se
+      pooled_list[[length(pooled_list)+1]] <- data.frame(
+        Threshold=thr, Model=mod, Metric=metric,
+        Mean=Q_bar, SE=se, Lower=lower, Upper=upper
+      )
+    }
+  }
+  if (length(pooled_list)==0) return(NULL)
+  bind_rows(pooled_list)
+}
+
+# Pool AUC, Brier, Slope
+rubin_auc   <- rubin_pool(all_runs, metric="AUC")
+rubin_brier <- rubin_pool(all_runs, metric="Brier")
+rubin_slope <- rubin_pool(all_runs, metric="Slope")
+
+rubin_all <- bind_rows(rubin_auc, rubin_brier, rubin_slope)
+
+# Save
+write.csv(rubin_all, file=file.path(outdir, "rubin_pooled_results.csv"), row.names=FALSE)
+print(rubin_all)
+
+```
+ 
+ 
+ 
+ 
+
+
+*Bloc R : MNAR sensitivity (delta-adjustment) + nested CV (même paramètres)*
+
+```{r}
+# ============================
+# MNAR sensitivity analysis — full version with plots
+# ============================
+
+# ============================
+# MNAR sensitivity analysis
+# Applies delta-adjustments to MICE imputations and runs nested_cv_eval
+# Uses same nested_cv_eval, predictors and CV parameters you defined earlier
+# Saves results and plots in outdir_mnar
+# ============================
+
+library(dplyr)
+library(foreach)
+library(doParallel)
+library(ggplot2)
+library(readr)
+library(tidyr)
+
+# ---- Configuration ----
+if (!exists("imputed_list")) stop("imputed_list not found: run mice() first.")
+if(!("R24" %in% names(data_main_clean))) {
+  data_main_clean <- data_main_clean %>% mutate(R24 = ifelse(!is.na(fact_chg24), 1, 0))
+}
+
+deltas <- c(0, 5, 7, 10)    # MAR = 0, MNAR scenarios
+thresholds <- c(0, -5, -7, -10)
+outdir_mnar <- "results_mnar"
+dir.create(outdir_mnar, showWarnings = FALSE)
+
+ncores <- max(1, parallel::detectCores() - 1)
+cl <- makeCluster(ncores)
+registerDoParallel(cl)
+
+predictors <- c("age","sex","ecogps","fact_bl","tumrtyp","arm","cgpart",
+                "hads_pt_anx_bl","hads_pt_dep_bl","edu_cat")
+missing_preds <- setdiff(predictors, names(imputed_list[[1]]))
+if(length(missing_preds)>0) stop("Missing predictors: ",paste(missing_preds,collapse=", "))
+
+# ---- helper: apply delta shift ----
+apply_delta_to_imputation <- function(imputed_df, orig_R24, delta) {
+  df <- imputed_df
+  if(delta != 0) {
+    idx_miss <- which(orig_R24 == 0)
+    if(length(idx_miss)>0 && "fact_chg24" %in% names(df)) {
+      df$fact_chg24 <- as.numeric(df$fact_chg24)
+      df$fact_chg24[idx_miss] <- df$fact_chg24[idx_miss] - delta
+    }
+  }
+  return(df)
+}
+
+# ---- MAIN LOOP ----
+all_mnar_results <- list()
+
+for(delta in deltas) {
+  cat("Running MNAR delta =", delta, "\n")
+  delta_dir <- file.path(outdir_mnar, paste0("delta_minus_", delta))
+  dir.create(delta_dir, showWarnings = FALSE, recursive = TRUE)
+  
+  results_by_delta <- foreach(imp_i = seq_along(imputed_list),
+                              .packages = c("dplyr","caret","glmnet","ranger","xgboost","pROC"),
+                              .errorhandling="pass") %dopar% {
+    dat_imp <- imputed_list[[imp_i]]
+    if("patref" %in% names(dat_imp) && "patref" %in% names(data_main_clean)) {
+      dat_imp <- dat_imp[match(data_main_clean$patref, dat_imp$patref), ]
+    }
+    orig_R24 <- data_main_clean$R24
+    dat_imp_mnar <- apply_delta_to_imputation(dat_imp, orig_R24, delta)
+    
+    res_per_thr <- list()
+    for(thr in thresholds) {
+      dat_work <- dat_imp_mnar %>%
+        mutate(fact_chg24_bin = ifelse(!is.na(fact_chg24) & fact_chg24 <= thr, 1,
+                                ifelse(!is.na(fact_chg24), 0, NA))) %>%
+        filter(!is.na(fact_chg24_bin))
+      
+      if(nrow(dat_work)<30 || sum(dat_work$fact_chg24_bin==1)<5) {
+        res_per_thr[[as.character(thr)]] <- data.frame(Imputation=imp_i,Delta=delta,
+                                                       Threshold=thr,Note="too_small")
+        next
+      }
+      
+      dat_work$fact_chg24_bin <- factor(dat_work$fact_chg24_bin, levels=c(0,1), labels=c("no","yes"))
+      res_df <- tryCatch({
+        nested_cv_eval(dat_work, outcome_var="fact_chg24_bin", predictors=predictors,
+                       outer_k=5, inner_k=3, seed=1000+imp_i+thr)
+      }, error=function(e) NULL)
+      
+      if(!is.null(res_df)) {
+        res_df$Imputation <- imp_i; res_df$Delta <- delta; res_df$Threshold <- thr
+      }
+      res_per_thr[[as.character(thr)]] <- res_df
+    }
+    res_bind <- bind_rows(res_per_thr)
+    saveRDS(res_bind, file=file.path(delta_dir, paste0("nested_results_imp",imp_i,"_delta",delta,".rds")))
+    res_bind
+  }
+  
+  results_by_delta_combined <- bind_rows(results_by_delta)
+  saveRDS(results_by_delta_combined, file=file.path(delta_dir, paste0("nested_results_all_imputations_delta",delta,".rds")))
+  write_csv(results_by_delta_combined, file=file.path(delta_dir, paste0("nested_results_all_imputations_delta",delta,".csv")))
+  all_mnar_results[[paste0("delta_",delta)]] <- results_by_delta_combined
+}
+
+stopCluster(cl); registerDoSEQ()
+
+# ---- Summary median / IQR ----
+summary_list <- list()
+for(delta in names(all_mnar_results)) {
+  df <- all_mnar_results[[delta]]; if(!("AUC" %in% names(df))) next
+  summary_df <- df %>%
+    filter(!is.na(AUC)) %>%
+    group_by(Threshold, Model, Delta) %>%
+    summarise(
+      AUC_median = median(AUC, na.rm=TRUE),
+      AUC_IQR = IQR(AUC, na.rm=TRUE),
+      Brier_median = median(Brier, na.rm=TRUE),
+      Brier_IQR = IQR(Brier, na.rm=TRUE),
+      Slope_median = median(Slope, na.rm=TRUE),
+      Slope_IQR = IQR(Slope, na.rm=TRUE),
+      .groups="drop"
+    )
+  summary_list[[delta]] <- summary_df
+  write_csv(summary_df, file=file.path(outdir_mnar, paste0("summary_",delta,".csv")))
+}
+summary_all_deltas <- bind_rows(summary_list)
+write_csv(summary_all_deltas, file=file.path(outdir_mnar,"summary_all_deltas.csv"))
+
+# ---- Boxplots AUC / Brier / Slope ----
+gg_auc <- ggplot(bind_rows(all_mnar_results), aes(x=factor(Threshold), y=AUC, fill=Model)) +
+  geom_boxplot(outlier.alpha=0.3) +
+  facet_wrap(~Delta, labeller=label_both) +
+  labs(title="AUC by Model, Threshold, and Delta (MNAR scenarios)", x="Threshold", y="AUC") +
+  theme_minimal(base_size=13)
+ggsave(file.path(outdir_mnar,"AUC_boxplot_MNAR.png"), plot=gg_auc, width=10, height=6)
+
+gg_brier <- ggplot(bind_rows(all_mnar_results), aes(x=factor(Threshold), y=Brier, fill=Model)) +
+  geom_boxplot(outlier.alpha=0.3) +
+  facet_wrap(~Delta, labeller=label_both) +
+  labs(title="Brier by Model, Threshold, and Delta (MNAR scenarios)", x="Threshold", y="Brier") +
+  theme_minimal(base_size=13)
+ggsave(file.path(outdir_mnar,"Brier_boxplot_MNAR.png"), plot=gg_brier, width=10, height=6)
+
+gg_slope <- ggplot(bind_rows(all_mnar_results), aes(x=factor(Threshold), y=Slope, fill=Model)) +
+  geom_boxplot(outlier.alpha=0.3) +
+  geom_hline(yintercept=1, linetype="dashed", color="red") +
+  facet_wrap(~Delta, labeller=label_both) +
+  labs(title="Calibration slope by Model, Threshold, and Delta", x="Threshold", y="Slope") +
+  theme_minimal(base_size=13)
+ggsave(file.path(outdir_mnar,"Slope_boxplot_MNAR.png"), plot=gg_slope, width=10, height=6)
+
+# ---- Heatmap des médianes ----
+res_long <- summary_all_deltas %>%
+  pivot_longer(cols=c(AUC_median,Brier_median,Slope_median),
+               names_to="Metric", values_to="Value")
+
+gg_heat <- ggplot(res_long, aes(x=factor(Threshold), y=Model, fill=Value)) +
+  geom_tile(color="white") +
+  geom_text(aes(label=round(Value,2)), color="black", size=3) +
+  facet_grid(Metric~Delta, scales="free_y", labeller=label_both) +
+  labs(title="Median performance (MNAR sensitivity)", x="Threshold", y="Model") +
+  theme_minimal(base_size=12)
+ggsave(file.path(outdir_mnar,"Heatmap_MNAR_medians.png"), plot=gg_heat, width=11, height=6)
+
+# ---- Line plot: AUC median vs Delta ----
+p_line <- ggplot(summary_all_deltas, aes(x=factor(Delta), y=AUC_median, color=Model, group=Model)) +
+  geom_point(size=2) + geom_line() +
+  facet_wrap(~Threshold) +
+  labs(title="Median AUC by Delta (MNAR sensitivity)", x="Delta shift (points)", y="Median AUC") +
+  theme_minimal(base_size=13)
+ggsave(file.path(outdir_mnar,"AUC_median_vs_Delta.png"), plot=p_line, width=10, height=6)
+
+cat("✅ MNAR sensitivity analysis completed — all results & figures saved in:", outdir_mnar, "\n")
+
+```
+
+```{r}
+# =====================================================
+# 📊 COMPARATIVE PERFORMANCE TABLES: IPCW vs MICE vs MNAR
+# =====================================================
+
+library(dplyr)
+library(kableExtra)
+library(stringr)
+library(purrr)
+library(htmltools)
+
+# ---------- 1. Dossier de sortie ----------
+out_summary <- "output_summary"
+dir.create(out_summary, showWarnings = FALSE)
+
+# ---------- 2. Charger les résultats ----------
+summary_ipcw <- read.csv("outputs_prediction_IPCW/summary_median_IQR_1.csv")
+summary_mice <- read.csv("results_prediction_MICE/summary_median_IQR.csv")
+summary_mnar_d5  <- read.csv("results_mnar/summary_delta_5.csv")
+summary_mnar_d7  <- read.csv("results_mnar/summary_delta_7.csv")
+summary_mnar_d10 <- read.csv("results_mnar/summary_delta_10.csv")
+
+# ---------- 3. Mise en forme des métriques ----------
+format_metric <- function(df, metric){
+  df %>%
+    select(Threshold, Model,
+           Median = paste0(metric, "_median"),
+           IQR = paste0(metric, "_IQR")) %>%
+    mutate(value = sprintf("%.3f [%.3f]", Median, IQR)) %>%
+    select(Threshold, Model, value)
+}
+
+merge_metrics <- function(metric){
+  ipcw <- format_metric(summary_ipcw, metric) %>% rename(IPCW = value)
+  mice <- format_metric(summary_mice, metric) %>% rename(MICE = value)
+  d5   <- format_metric(summary_mnar_d5, metric) %>% rename(MNAR_d5 = value)
+  d7   <- format_metric(summary_mnar_d7, metric) %>% rename(MNAR_d7 = value)
+  d10  <- format_metric(summary_mnar_d10, metric) %>% rename(MNAR_d10 = value)
+
+  full <- reduce(list(ipcw, mice, d5, d7, d10), full_join, by = c("Threshold", "Model"))
+
+  # ---------- Interprétation ----------
+  full <- full %>%
+    mutate(
+      Comment = case_when(
+        as.numeric(str_extract(MICE, "^[0-9.]+")) >
+          as.numeric(str_extract(IPCW, "^[0-9.]+")) &
+        as.numeric(str_extract(MNAR_d10, "^[0-9.]+")) >
+          as.numeric(str_extract(IPCW, "^[0-9.]+")) ~ "MICE > IPCW; MNAR robust",
+        
+        as.numeric(str_extract(MICE, "^[0-9.]+")) >
+          as.numeric(str_extract(IPCW, "^[0-9.]+")) &
+        as.numeric(str_extract(MNAR_d10, "^[0-9.]+")) <
+          as.numeric(str_extract(MICE, "^[0-9.]+")) ~ "MICE > IPCW; decline with MNAR",
+        
+        as.numeric(str_extract(MICE, "^[0-9.]+")) <
+          as.numeric(str_extract(IPCW, "^[0-9.]+")) ~ "IPCW slightly better",
+        
+        TRUE ~ "Stable across methods"
+      )
+    )
+  full
+}
+
+# ---------- 4. Coloration conditionnelle ----------
+highlight_cell <- function(val_mice, val_ipcw, val_mnar5, val_mnar7, val_mnar10){
+  v_mice <- as.numeric(str_extract(val_mice, "^[0-9.]+"))
+  v_ipcw <- as.numeric(str_extract(val_ipcw, "^[0-9.]+"))
+  v_d5   <- as.numeric(str_extract(val_mnar5, "^[0-9.]+"))
+  v_d7   <- as.numeric(str_extract(val_mnar7, "^[0-9.]+"))
+  v_d10  <- as.numeric(str_extract(val_mnar10, "^[0-9.]+"))
+
+  cell <- list(IPCW = val_ipcw, MICE = val_mice,
+               MNAR_d5 = val_mnar5, MNAR_d7 = val_mnar7, MNAR_d10 = val_mnar10)
+
+  cell$MICE <- cell_spec(val_mice, "html",
+                         background = ifelse(v_mice > v_ipcw, "#d1ffd1", "white"))
+  cell$MNAR_d5 <- cell_spec(val_mnar5, "html",
+                            background = ifelse(abs(v_mice - v_d5) < 0.02, "#fff7d1", "white"))
+  cell$MNAR_d7 <- cell_spec(val_mnar7, "html",
+                            background = ifelse(abs(v_mice - v_d7) < 0.04, "#fff7d1", "white"))
+  cell$MNAR_d10 <- cell_spec(val_mnar10, "html",
+                             background = ifelse(v_d10 < (v_mice - 0.05), "#ffd1d1", "white"))
+  return(cell)
+}
+
+apply_coloring <- function(df){
+  df %>%
+    rowwise() %>%
+    mutate(cells = list(highlight_cell(MICE, IPCW, MNAR_d5, MNAR_d7, MNAR_d10))) %>%
+    mutate(
+      IPCW = cells$IPCW,
+      MICE = cells$MICE,
+      MNAR_d5 = cells$MNAR_d5,
+      MNAR_d7 = cells$MNAR_d7,
+      MNAR_d10 = cells$MNAR_d10
+    ) %>%
+    select(-cells) %>%
+    ungroup()
+}
+
+# ---------- 5. Création des tableaux ----------
+make_table <- function(metric, title, filename_prefix){
+  df_metric <- merge_metrics(metric)
+  df_metric <- apply_coloring(df_metric)
+
+  # Sauvegarde CSV brut
+  write.csv(df_metric, file.path(out_summary, paste0(filename_prefix, ".csv")), row.names = FALSE)
+
+  # Tableau publication ready (HTML)
+  tbl <- df_metric %>%
+    kbl(escape = FALSE,
+        caption = paste0(title, " (Median [IQR])"),
+        col.names = c("Threshold", "Model", "IPCW", "MICE", "MNAR Δ=-5", "MNAR Δ=-7", "MNAR Δ=-10", "Comment"),
+        align = "c") %>%
+    kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover", "condensed")) %>%
+    column_spec(1, bold = TRUE, width = "5em") %>%
+    column_spec(2, bold = TRUE, width = "6em") %>%
+    collapse_rows(columns = 1, valign = "top")
+
+  save_kable(tbl, file = file.path(out_summary, paste0(filename_prefix, ".html")))
+  return(tbl)
+}
+
+# ---------- 6. Génération ----------
+table_auc   <- make_table("AUC",   "Table 1. Comparison of AUC across IPCW, MICE, and MNAR analyses",   "Table1_AUC")
+table_brier <- make_table("Brier", "Table 2. Comparison of Brier score across IPCW, MICE, and MNAR analyses", "Table2_Brier")
+table_slope <- make_table("Slope", "Table 3. Comparison of Calibration slope across IPCW, MICE, and MNAR analyses", "Table3_Slope")
+
+# ---------- 7. Affichage ----------
+table_auc
+table_brier
+table_slope
+
+cat("✅ All tables saved in folder:", out_summary, "\n")
+
+```
+

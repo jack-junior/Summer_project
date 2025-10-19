@@ -1,0 +1,469 @@
+---
+title: "Functional attrition and Quality of Life in Advanced Cancer Trial: modeling
+  patients’ trajectories and evaluating the impact of missing outcome data handling
+  on quality-of-life prognostic"
+author: "GAYI KOMI SELASSI"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# *===========================================*
+# *2.Discrete time Multistate Modeling* 
+# *===========================================*
+
+
+### *1. Global setup*
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+set.seed(123)
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+library(glmnet)
+library(nnet)
+library(broom)
+library(DT)
+library(ggplot2)
+library(stringr)
+library(flextable)
+library(dplyr)
+library(tibble)
+
+# Create output directory
+output_dir <- "output_multistate"
+if(!dir.exists(output_dir)) dir.create(output_dir)
+if(!dir.exists(file.path(output_dir, "plots"))) dir.create(file.path(output_dir, "plots"))
+
+```
+
+
+### *2. Import and data preparation*
+
+```{r}
+data_main_clean <- readRDS("Data_Preparation_&_Descriptive_output/data_main_clean_final.rds")
+
+
+# Vérifier structure
+glimpse(data_main_clean)
+
+```
+
+
+### *3. Select andvariable of interest*
+
+```{r}
+vars <- c("patref","state_t0","state_t12","state_t24",
+          "age","sex","ecogps","fact_bl","hads_pt_anx_bl","hads_pt_dep_bl",
+          "tumrtyp","arm","edu_cat","marital_cat","race_cat", "cgpart")
+
+data_main_clean <- data_main_clean[, vars] 
+
+
+# Sauvegarde du jeu de données prêt
+#write.csv(data_main_clean, file.path(output_dir, "data_main_clean.csv"), row.names = FALSE)
+
+```
+
+
+
+### *4. Missingness patterns among baseline predictor for the model multi state*
+
+```{r}
+missing_pct <- sapply(data_main_clean, function(x) mean(is.na(x)) * 100)
+missing_table <- data.frame(
+  Variable = names(missing_pct),
+  Missing_Percent = round(missing_pct, 2)
+) %>% arrange(desc(Missing_Percent))
+
+kbl(missing_table, caption = "Missingness Percentage by Variable", row.names = FALSE) %>%
+  kable_classic(full_width = FALSE)
+
+write.csv(missing_table, file.path(output_dir, "missingness_patterns.csv"), row.names = FALSE)
+
+```
+
+### *5. Delete lines with NA in race and education
+
+```{r}
+# Remove rows with missing values in specific variables
+data_main_clean <- data_main_clean[!is.na(data_main_clean$edu_cat) &
+                                   !is.na(data_main_clean$race_cat) &
+                                   !is.na(data_main_clean$marital_cat), ]
+
+glimpse(data_main_clean)
+```
+
+
+### *6. Transitions T0→T12 (all start in A): multinomial regression for outcome {A, F, D}.*
+
+### *6a. Transitions T0→T12*
+
+```{r}
+# State codification Standardisation
+
+data_main_clean$state_t12 <- factor(data_main_clean$state_t12, levels = c("A","F","D"))
+data_main_clean$state_t24 <- factor(data_main_clean$state_t24, levels = c("A","F","D"))
+
+# Fonctions to diplay result
+mk_results_table <- function(fit, transition_name, alpha = 0.05){
+  summ <- summary(fit)
+  coefs <- summ$coefficients
+  ses   <- summ$standard.errors
+  zvals <- coefs / ses
+  pvals <- 2 * (1 - pnorm(abs(zvals)))
+
+  out <- map_dfr(seq_len(nrow(coefs)), function(i){
+    data.frame(
+      Transition = transition_name,
+      Outcome = rownames(coefs)[i],
+      Variable = colnames(coefs),
+      OR = exp(coefs[i,]),
+      CI_low = exp(coefs[i,] - 1.96 * ses[i,]),
+      CI_high = exp(coefs[i,] + 1.96 * ses[i,]),
+      p_value = pvals[i,],
+      Signif = ifelse(pvals[i,] < alpha, "*", "")
+    )
+  }) %>%
+    mutate(across(c(OR, CI_low, CI_high), round, 2),
+           p_value = signif(p_value, 3))
+  return(out)
+}
+
+# LASSO -> T0→T12
+preds_t0_t12 <- c("age","sex","ecogps","fact_bl","hads_pt_anx_bl","hads_pt_dep_bl",
+                  "tumrtyp","arm","edu_cat","cgpart")
+
+X_t0_t12 <- model.matrix(~ . , data = data_main_clean[, preds_t0_t12])
+y_t0_t12 <- data_main_clean$state_t12
+
+cvfit_t0_t12 <- cv.glmnet(X_t0_t12, y_t0_t12, family = "multinomial", alpha = 1)
+coefs_list <- coef(cvfit_t0_t12, s = "lambda.min")
+
+nz_vars <- unique(unlist(lapply(coefs_list, function(m) rownames(m)[as.numeric(m)!=0])))
+nz_vars <- setdiff(nz_vars, "(Intercept)")
+selected_preds_t0_t12 <- preds_t0_t12[sapply(preds_t0_t12, function(p) any(grepl(p, nz_vars)))]
+
+fit_multi_t0_t12 <- multinom(reformulate(selected_preds_t0_t12, "state_t12"),
+                             data = data_main_clean, trace = FALSE)
+results_t0_t12 <- mk_results_table(fit_multi_t0_t12, "T0→T12")
+
+```
+
+
+
+### *6b. Transitions T12→T24*
+
+Subgroup A at T12 → multinomial regression {A, F, D}
+
+Subgroup F at T12 → multinomial regression {A, F, D}
+
+```{r}
+# Ridge -> T12→T24 (A and F separately)
+preds_t12_t24 <- c("age","sex","ecogps","fact_bl","hads_pt_anx_bl","tumrtyp","arm")
+
+# A subset
+df_A <- subset(data_main_clean, state_t12 == "A")
+X_A <- model.matrix(~ . -1, data = df_A[, preds_t12_t24])
+y_A <- df_A$state_t24
+
+cvfit_A <- cv.glmnet(X_A, y_A, family = "multinomial", alpha = 0)
+coefs_A <- coef(cvfit_A, s = "lambda.min")
+nz_vars_A <- unique(unlist(lapply(coefs_A, function(m) rownames(m)[as.numeric(m)!=0])))
+nz_vars_A <- setdiff(nz_vars_A, "(Intercept)")
+selected_preds_A <- preds_t12_t24[sapply(preds_t12_t24, function(p) any(grepl(p, nz_vars_A)))]
+
+fit_multi_A <- multinom(reformulate(selected_preds_A, "state_t24"), data = df_A, trace = FALSE)
+results_t12_t24_A <- mk_results_table(fit_multi_A, "T12→T24 (A only)")
+
+# F subset
+df_F <- subset(data_main_clean, state_t12 == "F")
+X_F <- model.matrix(~ . -1, data = df_F[, preds_t12_t24])
+y_F <- df_F$state_t24
+
+cvfit_F <- cv.glmnet(X_F, y_F, family = "multinomial", alpha = 0)
+coefs_F <- coef(cvfit_F, s = "lambda.min")
+nz_vars_F <- unique(unlist(lapply(coefs_F, function(m) rownames(m)[as.numeric(m)!=0])))
+nz_vars_F <- setdiff(nz_vars_F, "(Intercept)")
+selected_preds_F <- preds_t12_t24[sapply(preds_t12_t24, function(p) any(grepl(p, nz_vars_F)))]
+
+fit_multi_F <- multinom(reformulate(selected_preds_F, "state_t24"), data = df_F, trace = FALSE)
+results_t12_t24_F <- mk_results_table(fit_multi_F, "T12→T24 (F only)")
+
+```
+
+
+### *6c. Result Transitions T0→T12, T12→T24*
+
+```{r}
+# Combine and export
+results_all <- bind_rows(results_t0_t12, results_t12_t24_A, results_t12_t24_F)
+write.csv(results_all, file.path(output_dir, "multinom_results.csv"), row.names = FALSE)
+
+results_all %>%
+  kbl(caption = "Multinomial Logistic Regression Results (with OR, 95% CI, p-value)", row.names = FALSE) %>%
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover"))
+
+```
+
+
+
+### *7. Average Marginal Effects (AME)*
+
+```{r}
+# ==========================================================
+# Purpose: Estimate and visualize the average marginal effects
+#          of covariates on state transition probabilities
+# ==========================================================
+
+# ---- Load required packages ----
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(kableExtra)
+
+# ---- Define AME function (continuous + categorical) ----
+ame_multinom <- function(fit, data, cont_vars = NULL, factor_vars = NULL, delta = 1){
+  # Compute predicted probabilities for each observation
+  classes <- colnames(predict(fit, newdata = data, type = "probs"))
+  base_pred <- as.matrix(predict(fit, newdata = data, type = "probs"))
+  
+  # ---- Continuous variables ----
+  ame_cont <- list()
+  if(!is.null(cont_vars)){
+    for(v in cont_vars){
+      d_cf <- data
+      d_cf[[v]] <- d_cf[[v]] + delta
+      cf_pred <- as.matrix(predict(fit, newdata = d_cf, type = "probs"))
+      diff <- (cf_pred - base_pred) / delta
+      ame_v <- colMeans(diff, na.rm = TRUE)
+      ame_cont[[v]] <- data.frame(Variable = v, Outcome = classes, AME = as.numeric(ame_v))
+    }
+  }
+  ame_cont <- if(length(ame_cont)) bind_rows(ame_cont) else NULL
+  
+  # ---- Categorical variables ----
+  ame_fact <- list()
+  if(!is.null(factor_vars)){
+    for(v in factor_vars){
+      levs <- levels(data[[v]])
+      ref <- levs[1]
+      for(lv in levs[-1]){
+        d_ref <- data; d_ref[[v]] <- factor(ref, levels = levs)
+        d_lv  <- data; d_lv[[v]]  <- factor(lv, levels = levs)
+        p_ref <- as.matrix(predict(fit, newdata = d_ref, type = "probs"))
+        p_lv  <- as.matrix(predict(fit, newdata = d_lv,  type = "probs"))
+        diff  <- p_lv - p_ref
+        ame_v <- colMeans(diff, na.rm = TRUE)
+        ame_fact[[paste(v, lv, sep = ":")]] <- data.frame(
+          Variable = paste0(v, " (", lv, " vs ", ref, ")"),
+          Outcome  = classes,
+          AME      = as.numeric(ame_v)
+        )
+      }
+    }
+  }
+  ame_fact <- if(length(ame_fact)) bind_rows(ame_fact) else NULL
+  
+  bind_rows(ame_cont, ame_fact)
+}
+
+# ---- Define variables ----
+cont_vars_t0_t12 <- intersect(selected_preds_t0_t12, c("age","ecogps","fact_bl","hads_pt_anx_bl","hads_pt_dep_bl"))
+factor_vars_t0_t12 <- intersect(selected_preds_t0_t12, c("sex","tumrtyp","arm","edu_cat","cgpart"))
+
+cont_vars_A <- intersect(selected_preds_A, c("age","ecogps","fact_bl","hads_pt_anx_bl","hads_pt_dep_bl"))
+factor_vars_A <- intersect(selected_preds_A, c("sex","tumrtyp","arm"))
+
+# ---- Compute AMEs for both transitions ----
+ame_t0_t12 <- ame_multinom(fit_multi_t0_t12, data_main_clean, cont_vars_t0_t12, factor_vars_t0_t12)
+ame_t12_t24 <- ame_multinom(fit_multi_A, df_A, cont_vars_A, factor_vars_A)
+
+# ---- Export AME results ----
+write.csv(ame_t0_t12, "output_multistate/AME_T0_T12.csv", row.names = FALSE)
+write.csv(ame_t12_t24, "output_multistate/AME_T12_T24.csv", row.names = FALSE)
+
+
+```
+
+
+```{r}
+# ==========================================================
+# 6. Visualization of AME results (with titles)
+# ==========================================================
+# Purpose: Display and export AME tables and plots
+# ==========================================================
+
+# ---- Define plotting function ----
+plot_ame <- function(ame_df, title = "Average Marginal Effects"){
+  ame_df <- ame_df %>% mutate(Variable = str_wrap(Variable, width = 40))
+  ggplot(ame_df, aes(x = Variable, y = AME, fill = Outcome)) +
+    geom_col(position = "dodge") +
+    coord_flip() +
+    labs(title = title,
+         x = "Covariates",
+         y = "AME (change in predicted probability)") +
+    theme_minimal(base_size = 12) +
+    theme(
+      plot.title = element_text(face = "bold", hjust = 0.5, size = 14),
+      axis.text.y = element_text(angle = 0, hjust = 1, size = 10)
+    )
+}
+
+# ---- Display formatted tables ----
+# T0 → T12
+ame_t0_t12 %>%
+  kable("html", caption = "Average Marginal Effects (T0 → T12)", row.names = FALSE) %>%
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover")) %>%
+  column_spec(3, color = ifelse(ame_t0_t12$AME > 0, "blue", "red"))
+
+# T12 → T24
+ame_t12_t24 %>%
+  kable("html", caption = "Average Marginal Effects (T12 → T24)", row.names = FALSE) %>%
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover")) %>%
+  column_spec(3, color = ifelse(ame_t12_t24$AME > 0, "blue", "red"))
+
+# ---- Generate plots ----
+p1 <- plot_ame(ame_t0_t12, title = "AMEs for T0 → T12 transitions")
+p2 <- plot_ame(ame_t12_t24, title = "AMEs for T12 → T24 transitions (vs A)")
+
+# ---- Display both plots in Markdown output ----
+cat("\n\n### AME plot for T0 → T12 transitions\n")
+print(p1)
+
+cat("\n\n### AME plot for T12 → T24 transitions\n")
+print(p2)
+
+# ---- Save high-resolution images ----
+ggsave("output_multistate/plot_AME_T0_T12.png", plot = p1, width = 9, height = 6, dpi = 300)
+ggsave("output_multistate/plot_AME_T12_T24.png", plot = p2, width = 9, height = 6, dpi = 300)
+
+```
+
+
+
+
+### *7. Clinical Profile Simulations (Illustrative Scenarios)*
+
+```{r}
+# ==========================================================
+# Purpose: Estimate transition probabilities for typical
+#          clinical profiles (T0→T12 and T12→T24)
+# ==========================================================
+
+library(dplyr)
+library(knitr)
+library(kableExtra)
+
+# ----------------------------------------------------------
+# Define clinical profiles for T0 → T12
+# ----------------------------------------------------------
+profiles_t0_t12 <- tribble(
+  ~age, ~sex, ~ecogps, ~fact_bl, ~hads_pt_anx_bl, ~hads_pt_dep_bl, ~tumrtyp, ~arm, ~edu_cat, ~cgpart,
+  45, "f", 0, 85, 3, 2, "Esophageal/GEJ/Gastric", "1", "College+", "Yes",
+  45, "f", 0, 85, 12, 6, "Esophageal/GEJ/Gastric", "1", "College+", "Yes",
+  75, "m", 2, 60, 3, 2, "Hepatic/Biliary/Pancreatic/Unknown primary", "2", "Low", "Yes",
+  75, "m", 2, 60, 12, 10, "Hepatic/Biliary/Pancreatic/Unknown primary", "2", "Low", "Yes",
+  45, "f", 0, 85, 3, 2, "Esophageal/GEJ/Gastric", "1", "College+", "No",
+  45, "f", 0, 85, 12, 6, "Esophageal/GEJ/Gastric", "1", "College+", "No",
+  75, "m", 2, 60, 3, 2, "Hepatic/Biliary/Pancreatic/Unknown primary", "2", "Low", "No",
+  75, "m", 2, 60, 12, 10, "Hepatic/Biliary/Pancreatic/Unknown primary", "2", "Low", "No"
+) %>%
+  mutate(
+    across(c(sex, tumrtyp, arm, edu_cat, cgpart), as.character),
+    across(c(age, ecogps, fact_bl, hads_pt_anx_bl, hads_pt_dep_bl), as.numeric),
+    label = paste(
+      ifelse(age < 60, "Young fit", "Old fragile"),
+      ifelse(hads_pt_anx_bl <= 6, "low anxiety", "high anxiety"),
+      ifelse(cgpart == "Yes", "caregiver", "no caregiver"),
+      tumrtyp,
+      edu_cat,
+      sep = ", "
+    )
+  )
+
+# ----------------------------------------------------------
+# Define clinical profiles for T12 → T24
+# ----------------------------------------------------------
+profiles_t12_t24 <- tribble(
+  ~label, ~age, ~sex, ~ecogps, ~fact_bl, ~hads_pt_anx_bl, ~tumrtyp, ~arm,
+  "Young fit, high anxiety, Esophageal/GEJ, Arm1", 45, "f", 0, 85, 12, "Esophageal/GEJ/Gastric", "1",
+  "Young fit, low anxiety, Lung, Arm1", 45, "m", 0, 80, 3, "Lung", "1",
+  "Young fit, high anxiety, Lung, Arm1", 45, "m", 0, 80, 12, "Lung", "1",
+  "Old fragile, low anxiety, Hepatic/Biliary, Arm2", 75, "m", 2, 60, 3, "Hepatic/Biliary/Pancreatic/Unknown primary", "2",
+  "Old fragile, high anxiety, Hepatic/Biliary, Arm2", 75, "m", 2, 60, 12, "Hepatic/Biliary/Pancreatic/Unknown primary", "2",
+  "Old fragile, low anxiety, Lung, Arm2", 75, "f", 2, 65, 3, "Lung", "2",
+  "Old fragile, high anxiety, Lung, Arm2", 75, "f", 2, 65, 12, "Lung", "2"
+) %>%
+  mutate(across(c(sex, tumrtyp, arm), as.character))
+
+# ----------------------------------------------------------
+# Function to predict probabilities for given profiles
+# ----------------------------------------------------------
+predict_profiles <- function(model, profiles, selected_preds, reference_data){
+  for(col in selected_preds){
+    if(col %in% names(profiles)){
+      if(is.factor(reference_data[[col]]) || is.character(reference_data[[col]])){
+        profiles[[col]] <- factor(profiles[[col]], levels = levels(factor(reference_data[[col]])))
+      } else {
+        profiles[[col]] <- as.numeric(profiles[[col]])
+      }
+    }
+  }
+  probs <- predict(model, newdata = profiles, type = "probs")
+  results <- as.data.frame(probs)
+  results$label <- profiles$label
+  results <- results %>% relocate(label) %>% mutate(across(where(is.numeric), ~round(.x,3)))
+  return(results)
+}
+
+# ----------------------------------------------------------
+# Function to highlight highest probability per row
+# ----------------------------------------------------------
+highlight_max_prob <- function(df, prob_cols) {
+  df %>%
+    rowwise() %>%
+    mutate(across(all_of(prob_cols),
+                  ~cell_spec(.x, "html",
+                             color = ifelse(.x == max(c_across(all_of(prob_cols))), "white", "black"),
+                             background = ifelse(.x == max(c_across(all_of(prob_cols))), "steelblue", "white")))) %>%
+    ungroup()
+}
+
+# ----------------------------------------------------------
+# Predictions and table display
+# ----------------------------------------------------------
+
+# ---- T0 → T12 ----
+res_profiles_t0_t12 <- predict_profiles(fit_multi_t0_t12, profiles_t0_t12, selected_preds_t0_t12, data_main_clean)
+res_profiles_t0_t12_colored <- highlight_max_prob(res_profiles_t0_t12, colnames(res_profiles_t0_t12)[-1])
+
+res_profiles_t0_t12_colored %>%
+  kable("html", escape = FALSE,
+        caption = "Predicted Probabilities for T0 → T12 Transitions by Clinical Profile",
+        row.names = FALSE) %>%
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover")) %>%
+  column_spec(1, bold = TRUE, color = "blue") %>%
+  add_footnote("Note: Probabilities of being in A, F or D are calculated versus A (Active) in the previous state.")
+
+# Export table (without formatting)
+write.csv(res_profiles_t0_t12, "output_multistate/Profiles_T0_T12.csv", row.names = FALSE)
+
+# ---- T12 → T24 ----
+res_profiles_t12_t24 <- predict_profiles(fit_multi_A, profiles_t12_t24, selected_preds_A, df_A)
+res_profiles_t12_t24_colored <- highlight_max_prob(res_profiles_t12_t24, colnames(res_profiles_t12_t24)[-1])
+
+res_profiles_t12_t24_colored %>%
+  kable("html", escape = FALSE,
+        caption = "Predicted Probabilities for T12 → T24 Transitions by Clinical Profile",
+        row.names = FALSE) %>%
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover")) %>%
+  column_spec(1, bold = TRUE, color = "blue") %>%
+  add_footnote("Note: Probabilities of being in A, F or D are calculated versus A (Active) in the previous state.")
+
+# Export table (without formatting)
+write.csv(res_profiles_t12_t24, "output_multistate/Profiles_T12_T24.csv", row.names = FALSE)
+
+```
+
+

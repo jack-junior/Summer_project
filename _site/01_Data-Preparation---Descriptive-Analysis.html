@@ -1,0 +1,3184 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+<meta name="author" content="GAYI KOMI SELASSI" />
+
+<meta name="date" content="2025-10-19" />
+
+<title>Modeling Functional Attrition and Quality-of-Life Dynamics in Oncology: A Three-State Multi-State and Predictive Approach (NCT02349412)</title>
+
+<script src="site_libs/header-attrs-2.27/header-attrs.js"></script>
+<script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/bootstrap.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<script src="site_libs/kePrint-0.0.1/kePrint.js"></script>
+<link href="site_libs/lightable-0.0.1/lightable.css" rel="stylesheet" />
+<link href="site_libs/htmltools-fill-0.5.8.1/fill.css" rel="stylesheet" />
+<script src="site_libs/htmlwidgets-1.6.4/htmlwidgets.js"></script>
+<script src="site_libs/viz-1.8.2/viz.js"></script>
+<link href="site_libs/DiagrammeR-styles-0.2/styles.css" rel="stylesheet" />
+<script src="site_libs/grViz-binding-1.0.11/grViz.js"></script>
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark the anchor link active (and if it's in a dropdown, also mark that active)
+  var dropdown = menuAnchor.closest('li.dropdown');
+  if (window.bootstrap) { // Bootstrap 4+
+    menuAnchor.addClass('active');
+    dropdown.find('> .dropdown-toggle').addClass('active');
+  } else { // Bootstrap 3
+    menuAnchor.parent().addClass('active');
+    dropdown.addClass('active');
+  }
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-bs-toggle="collapse" data-target="#navbar" data-bs-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">My Website</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li>
+  <a href="about.html">About</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">Modeling Functional Attrition and
+Quality-of-Life Dynamics in Oncology: A Three-State Multi-State and
+Predictive Approach (NCT02349412)</h1>
+<h4 class="author">GAYI KOMI SELASSI</h4>
+<h4 class="date">2025-10-19</h4>
+
+</div>
+
+
+<div id="section" class="section level1">
+<h1><em>===========================================</em></h1>
+</div>
+<div id="data-preparation-descriptive-analysis" class="section level1">
+<h1><em>1. Data Preparation &amp; Descriptive Analysis</em></h1>
+</div>
+<div id="section-1" class="section level1">
+<h1><em>===========================================</em></h1>
+<div id="importation-and-variables-selection" class="section level3">
+<h3>1. <em>Importation and variables selection</em></h3>
+<pre class="r"><code>library(tidyverse)
+library(knitr)
+library(kableExtra)
+library(tableone)
+library(broom)
+
+# Create output folder
+outdir &lt;- &quot;Data_Preparation_&amp;_Descriptive_output&quot;
+dir.create(outdir, showWarnings = FALSE)
+
+# Import dataset
+data &lt;- read.csv(&quot;dataset_merged.csv&quot;, stringsAsFactors = FALSE)
+
+# Select variables of interest
+data_main &lt;- data[, c(
+  &quot;patref&quot;, &quot;wk12_dead&quot;, &quot;wk24_dead&quot;,
+  &quot;fact_chg12&quot;, &quot;fact_chg24&quot;,
+  &quot;hads_anx_chg12&quot;, &quot;hads_dep_chg12&quot;,
+  &quot;n12&quot;, &quot;n12_grp&quot;,
+  &quot;fact_bl&quot;, &quot;hads_pt_anx_bl&quot;, &quot;hads_pt_dep_bl&quot;,
+  &quot;age&quot;, &quot;sex&quot;, &quot;ecogps&quot;, &quot;tumrtyp&quot;, &quot;cgpart&quot;,
+  &quot;race1&quot;, &quot;ptethncty&quot;, &quot;pthighedu&quot;, &quot;ptmargstat&quot;,
+  &quot;ptrelgn&quot;, &quot;sitetype&quot;, &quot;arm&quot;, &quot;bsl_assess_complete&quot;,
+  &quot;ptpqpt1_grp&quot;, &quot;ptpqpt7_grp&quot;, &quot;ptpqpt9e_grp&quot;,
+  &quot;ptpqpt11_grp&quot;, &quot;ptpqpt12_grp&quot;
+)]
+
+glimpse(data_main)</code></pre>
+<pre><code>## Rows: 405
+## Columns: 30
+## $ patref              &lt;int&gt; 9103597, 9103612, 9103621, 9103631, 9103689, 91037…
+## $ wk12_dead           &lt;int&gt; 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0,…
+## $ wk24_dead           &lt;int&gt; 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0,…
+## $ fact_chg12          &lt;dbl&gt; NA, NA, -13.0000, 8.0000, NA, NA, -13.0000, NA, NA…
+## $ fact_chg24          &lt;dbl&gt; NA, NA, NA, 3.6667, NA, NA, NA, NA, -4.0000, NA, N…
+## $ hads_anx_chg12      &lt;int&gt; NA, NA, -1, 0, NA, NA, 2, NA, -1, 5, 6, NA, 0, 1, …
+## $ hads_dep_chg12      &lt;int&gt; NA, NA, -3, 2, NA, NA, 1, NA, 4, 8, 2, NA, 1, 4, N…
+## $ n12                 &lt;int&gt; 6, 1, 0, 3, 2, 0, 4, 3, 2, 0, 1, 4, 2, 0, 5, 2, 4,…
+## $ n12_grp             &lt;chr&gt; &quot;5-6 visits&quot;, &quot;1-2 visits&quot;, &quot;0 visits&quot;, &quot;3-4 visit…
+## $ fact_bl             &lt;dbl&gt; 90.000, 97.333, 81.000, 90.000, 73.167, 62.000, 65…
+## $ hads_pt_anx_bl      &lt;int&gt; 7, 0, 8, 5, 5, 16, 8, 6, 13, 1, 4, 9, 9, 6, 4, 9, …
+## $ hads_pt_dep_bl      &lt;int&gt; 0, 0, 11, 1, 7, 13, 4, 10, 9, 1, 3, 7, 5, 5, 1, 2,…
+## $ age                 &lt;chr&gt; &quot;56&quot;, &quot;71&quot;, &quot;86&quot;, &quot;64&quot;, &quot;54&quot;, &quot;55&quot;, &quot;69&quot;, &quot;75&quot;, &quot;4…
+## $ sex                 &lt;chr&gt; &quot;f&quot;, &quot;m&quot;, &quot;m&quot;, &quot;m&quot;, &quot;f&quot;, &quot;f&quot;, &quot;f&quot;, &quot;f&quot;, &quot;f&quot;, &quot;f&quot;, …
+## $ ecogps              &lt;int&gt; 0, 1, 1, 0, 1, 1, 2, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1,…
+## $ tumrtyp             &lt;chr&gt; &quot;Lung&quot;, &quot;Lung&quot;, &quot;Lung&quot;, &quot;Hepatic/Biliary/Pancreati…
+## $ cgpart              &lt;chr&gt; &quot;No&quot;, &quot;No&quot;, &quot;Yes&quot;, &quot;Yes&quot;, &quot;Yes&quot;, &quot;Yes&quot;, &quot;Yes&quot;, &quot;Ye…
+## $ race1               &lt;chr&gt; &quot;White&quot;, &quot;White&quot;, &quot;White&quot;, &quot;White&quot;, &quot;White&quot;, &quot;Whit…
+## $ ptethncty           &lt;chr&gt; &quot;Not Hispanic or Latino&quot;, &quot;Not Hispanic or Latino&quot;…
+## $ pthighedu           &lt;chr&gt; &quot;Bachelor&#39;s degree&quot;, &quot;Associate degree/some colleg…
+## $ ptmargstat          &lt;chr&gt; &quot;Domestic partnership&quot;, &quot;Divorced&quot;, &quot;Married&quot;, &quot;Ma…
+## $ ptrelgn             &lt;chr&gt; &quot;Catholic&quot;, &quot;Other&quot;, &quot;Jewish&quot;, &quot;Catholic&quot;, &quot;Protes…
+## $ sitetype            &lt;chr&gt; &quot;Community&quot;, NA, NA, &quot;Community&quot;, &quot;Academic&quot;, NA, …
+## $ arm                 &lt;int&gt; 1, 2, 2, 1, 1, 2, 1, 1, 2, 2, 2, 2, 1, 2, 1, 1, 1,…
+## $ bsl_assess_complete &lt;int&gt; 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,…
+## $ ptpqpt1_grp         &lt;chr&gt; &quot;&quot;, &quot;&quot;, &quot;I want to hear as many details as possibl…
+## $ ptpqpt7_grp         &lt;chr&gt; &quot;&quot;, &quot;&quot;, &quot;I now have about the right amount of info…
+## $ ptpqpt9e_grp        &lt;chr&gt; &quot;&quot;, &quot;&quot;, &quot;Not at all to very helpful&quot;, &quot;Extremely H…
+## $ ptpqpt11_grp        &lt;chr&gt; &quot;&quot;, &quot;&quot;, &quot;No chance (0% chance)&quot;, &quot;No chance (0% ch…
+## $ ptpqpt12_grp        &lt;chr&gt; &quot;&quot;, &quot;&quot;, &quot;No&quot;, &quot;Yes&quot;, &quot;&quot;, &quot;&quot;, &quot;Yes&quot;, &quot;&quot;, &quot;No&quot;, &quot;No&quot;…</code></pre>
+</div>
+<div id="assessment-of-the-missing-data-rate" class="section level3">
+<h3><em>2. Assessment of the Missing Data Rate</em></h3>
+<pre class="r"><code>missing_pct &lt;- sapply(data_main, function(x) mean(is.na(x)) * 100)
+missing_table &lt;- data.frame(
+  Variable = names(missing_pct),
+  Missing_Percent = round(missing_pct, 2)
+) %&gt;%
+  arrange(desc(Missing_Percent))
+
+kable(missing_table, caption = &quot;Percentage of Missing Values per Variable&quot;) %&gt;%
+  kable_styling(bootstrap_options = c(&quot;striped&quot;, &quot;hover&quot;, &quot;condensed&quot;))</code></pre>
+<table class="table table-striped table-hover table-condensed" style="margin-left: auto; margin-right: auto;">
+<caption>
+Percentage of Missing Values per Variable
+</caption>
+<thead>
+<tr>
+<th style="text-align:left;">
+</th>
+<th style="text-align:left;">
+Variable
+</th>
+<th style="text-align:right;">
+Missing_Percent
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+fact_chg24
+</td>
+<td style="text-align:left;">
+fact_chg24
+</td>
+<td style="text-align:right;">
+63.46
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+fact_chg12
+</td>
+<td style="text-align:left;">
+fact_chg12
+</td>
+<td style="text-align:right;">
+52.35
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+sitetype
+</td>
+<td style="text-align:left;">
+sitetype
+</td>
+<td style="text-align:right;">
+51.85
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+hads_anx_chg12
+</td>
+<td style="text-align:left;">
+hads_anx_chg12
+</td>
+<td style="text-align:right;">
+47.90
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+hads_dep_chg12
+</td>
+<td style="text-align:left;">
+hads_dep_chg12
+</td>
+<td style="text-align:right;">
+47.65
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+fact_bl
+</td>
+<td style="text-align:left;">
+fact_bl
+</td>
+<td style="text-align:right;">
+13.09
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+hads_pt_anx_bl
+</td>
+<td style="text-align:left;">
+hads_pt_anx_bl
+</td>
+<td style="text-align:right;">
+9.63
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+hads_pt_dep_bl
+</td>
+<td style="text-align:left;">
+hads_pt_dep_bl
+</td>
+<td style="text-align:right;">
+9.63
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+wk12_dead
+</td>
+<td style="text-align:left;">
+wk12_dead
+</td>
+<td style="text-align:right;">
+3.46
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+wk24_dead
+</td>
+<td style="text-align:left;">
+wk24_dead
+</td>
+<td style="text-align:right;">
+3.46
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+n12
+</td>
+<td style="text-align:left;">
+n12
+</td>
+<td style="text-align:right;">
+3.46
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+n12_grp
+</td>
+<td style="text-align:left;">
+n12_grp
+</td>
+<td style="text-align:right;">
+3.46
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+age
+</td>
+<td style="text-align:left;">
+age
+</td>
+<td style="text-align:right;">
+3.46
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+sex
+</td>
+<td style="text-align:left;">
+sex
+</td>
+<td style="text-align:right;">
+3.46
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+ecogps
+</td>
+<td style="text-align:left;">
+ecogps
+</td>
+<td style="text-align:right;">
+3.46
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+tumrtyp
+</td>
+<td style="text-align:left;">
+tumrtyp
+</td>
+<td style="text-align:right;">
+3.46
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+cgpart
+</td>
+<td style="text-align:left;">
+cgpart
+</td>
+<td style="text-align:right;">
+3.46
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+race1
+</td>
+<td style="text-align:left;">
+race1
+</td>
+<td style="text-align:right;">
+3.46
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+ptethncty
+</td>
+<td style="text-align:left;">
+ptethncty
+</td>
+<td style="text-align:right;">
+3.46
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+pthighedu
+</td>
+<td style="text-align:left;">
+pthighedu
+</td>
+<td style="text-align:right;">
+3.46
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+ptmargstat
+</td>
+<td style="text-align:left;">
+ptmargstat
+</td>
+<td style="text-align:right;">
+3.46
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+ptrelgn
+</td>
+<td style="text-align:left;">
+ptrelgn
+</td>
+<td style="text-align:right;">
+3.46
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+bsl_assess_complete
+</td>
+<td style="text-align:left;">
+bsl_assess_complete
+</td>
+<td style="text-align:right;">
+3.46
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+ptpqpt1_grp
+</td>
+<td style="text-align:left;">
+ptpqpt1_grp
+</td>
+<td style="text-align:right;">
+3.46
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+ptpqpt7_grp
+</td>
+<td style="text-align:left;">
+ptpqpt7_grp
+</td>
+<td style="text-align:right;">
+3.46
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+ptpqpt9e_grp
+</td>
+<td style="text-align:left;">
+ptpqpt9e_grp
+</td>
+<td style="text-align:right;">
+3.46
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+ptpqpt11_grp
+</td>
+<td style="text-align:left;">
+ptpqpt11_grp
+</td>
+<td style="text-align:right;">
+3.46
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+ptpqpt12_grp
+</td>
+<td style="text-align:left;">
+ptpqpt12_grp
+</td>
+<td style="text-align:right;">
+3.46
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+patref
+</td>
+<td style="text-align:left;">
+patref
+</td>
+<td style="text-align:right;">
+0.00
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+arm
+</td>
+<td style="text-align:left;">
+arm
+</td>
+<td style="text-align:right;">
+0.00
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="cleaning-and-harmonization-of-variable-types"
+class="section level3">
+<h3><em>3. Cleaning and Harmonization of Variable Types</em></h3>
+<pre class="r"><code># Replace &quot;&gt;90&quot; in age and convert to numeric
+data_main$age &lt;- as.character(data_main$age)
+data_main$age[data_main$age == &quot;&gt;90&quot;] &lt;- &quot;90&quot;
+data_main$age &lt;- as.numeric(data_main$age)
+
+# Remove rows with ≤2 non-missing variables (essentially empty)
+data_main &lt;- data_main %&gt;% 
+  mutate(non_missing = rowSums(!is.na(.))) %&gt;%
+  filter(non_missing &gt; 2) %&gt;%
+  select(-non_missing)
+
+# Convert all character columns to factor, replacing &quot;&quot; by NA
+char_vars &lt;- names(data_main)[sapply(data_main, is.character)]
+for (v in char_vars) {
+  data_main[[v]][data_main[[v]] == &quot;&quot;] &lt;- NA
+  data_main[[v]] &lt;- as.factor(data_main[[v]])
+}
+
+# Specific factor conversions
+data_main$arm &lt;- factor(data_main$arm)
+data_main$wk12_dead &lt;- factor(data_main$wk12_dead)
+data_main$wk24_dead &lt;- factor(data_main$wk24_dead)
+#data_main$ecogps &lt;- factor(data_main$ecogps)</code></pre>
+<pre class="r"><code>glimpse(data_main)</code></pre>
+<pre><code>## Rows: 391
+## Columns: 30
+## $ patref              &lt;int&gt; 9103597, 9103612, 9103621, 9103631, 9103689, 91037…
+## $ wk12_dead           &lt;fct&gt; 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0,…
+## $ wk24_dead           &lt;fct&gt; 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0,…
+## $ fact_chg12          &lt;dbl&gt; NA, NA, -13.0000, 8.0000, NA, NA, -13.0000, NA, NA…
+## $ fact_chg24          &lt;dbl&gt; NA, NA, NA, 3.6667, NA, NA, NA, NA, -4.0000, NA, N…
+## $ hads_anx_chg12      &lt;int&gt; NA, NA, -1, 0, NA, NA, 2, NA, -1, 5, 6, NA, 0, 1, …
+## $ hads_dep_chg12      &lt;int&gt; NA, NA, -3, 2, NA, NA, 1, NA, 4, 8, 2, NA, 1, 4, N…
+## $ n12                 &lt;int&gt; 6, 1, 0, 3, 2, 0, 4, 3, 2, 0, 1, 4, 2, 0, 5, 2, 4,…
+## $ n12_grp             &lt;fct&gt; 5-6 visits, 1-2 visits, 0 visits, 3-4 visits, 1-2 …
+## $ fact_bl             &lt;dbl&gt; 90.000, 97.333, 81.000, 90.000, 73.167, 62.000, 65…
+## $ hads_pt_anx_bl      &lt;int&gt; 7, 0, 8, 5, 5, 16, 8, 6, 13, 1, 4, 9, 9, 6, 4, 9, …
+## $ hads_pt_dep_bl      &lt;int&gt; 0, 0, 11, 1, 7, 13, 4, 10, 9, 1, 3, 7, 5, 5, 1, 2,…
+## $ age                 &lt;dbl&gt; 56, 71, 86, 64, 54, 55, 69, 75, 40, 61, 85, 59, 62…
+## $ sex                 &lt;fct&gt; f, m, m, m, f, f, f, f, f, f, m, f, m, f, m, m, m,…
+## $ ecogps              &lt;int&gt; 0, 1, 1, 0, 1, 1, 2, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1,…
+## $ tumrtyp             &lt;fct&gt; Lung, Lung, Lung, Hepatic/Biliary/Pancreatic/Unkno…
+## $ cgpart              &lt;fct&gt; No, No, Yes, Yes, Yes, Yes, Yes, Yes, No, Yes, Yes…
+## $ race1               &lt;fct&gt; White, White, White, White, White, White, White, W…
+## $ ptethncty           &lt;fct&gt; Not Hispanic or Latino, Not Hispanic or Latino, No…
+## $ pthighedu           &lt;fct&gt; Bachelor&#39;s degree, Associate degree/some college, …
+## $ ptmargstat          &lt;fct&gt; Domestic partnership, Divorced, Married, Married, …
+## $ ptrelgn             &lt;fct&gt; Catholic, Other, Jewish, Catholic, Protestant, Not…
+## $ sitetype            &lt;fct&gt; Community, NA, NA, Community, Academic, NA, Academ…
+## $ arm                 &lt;fct&gt; 1, 2, 2, 1, 1, 2, 1, 1, 2, 2, 2, 2, 1, 2, 1, 1, 1,…
+## $ bsl_assess_complete &lt;int&gt; 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,…
+## $ ptpqpt1_grp         &lt;fct&gt; NA, NA, &quot;I want to hear as many details as possibl…
+## $ ptpqpt7_grp         &lt;fct&gt; NA, NA, I now have about the right amount of infor…
+## $ ptpqpt9e_grp        &lt;fct&gt; NA, NA, Not at all to very helpful, Extremely Help…
+## $ ptpqpt11_grp        &lt;fct&gt; NA, NA, No chance (0% chance), No chance (0% chanc…
+## $ ptpqpt12_grp        &lt;fct&gt; NA, NA, No, Yes, NA, NA, Yes, NA, No, No, No, NA, …</code></pre>
+</div>
+<div id="recoding-of-derived-variables-education-race-marital-status"
+class="section level3">
+<h3>*4. **Recoding of Derived Variables (Education, Race, Marital
+Status)*</h3>
+<pre class="r"><code>data_main &lt;- data_main %&gt;%
+  mutate(
+    edu_cat = case_when(
+      pthighedu %in% c(&quot;8th grade or less&quot;, &quot;9-11th grade&quot;) ~ &quot;Low&quot;,
+      pthighedu %in% c(&quot;High school graduate/GED&quot;, &quot;Vocational/technical school&quot;) ~ &quot;High school&quot;,
+      pthighedu %in% c(&quot;Associate degree/some college&quot;, &quot;Bachelor&#39;s degree&quot;, &quot;Advanced degree&quot;) ~ &quot;College+&quot;,
+      TRUE ~ NA_character_),
+    marital_cat = case_when(
+      ptmargstat %in% c(&quot;Married&quot;, &quot;Domestic partnership&quot;) ~ &quot;Married/Partnered&quot;,
+      ptmargstat %in% c(&quot;Never married&quot;, &quot;Divorced&quot;, &quot;Separated&quot;, &quot;Widowed&quot;) ~ &quot;Not married&quot;,
+      TRUE ~ NA_character_),
+    race_cat = case_when(
+      race1 == &quot;White&quot; ~ &quot;White&quot;,
+      race1 == &quot;Black or African American&quot; ~ &quot;Black&quot;,
+      race1 == &quot;Asian&quot; ~ &quot;Asian&quot;,
+      race1 %in% c(&quot;American Indian or Alaska Native&quot;, &quot;Native Hawaiian or Other Pacific Islander&quot;) ~ &quot;Minority&quot;,
+      TRUE ~ NA_character_)
+  )
+
+data_main &lt;- data_main %&gt;%
+  mutate(
+    edu_cat = factor(edu_cat, levels = c(&quot;College+&quot;, &quot;High school&quot;, &quot;Low&quot;)),
+    marital_cat = factor(marital_cat),
+    race_cat = factor(race_cat)
+  )</code></pre>
+</div>
+<div id="definition-of-multi-time-states-a-f-d" class="section level3">
+<h3><em>5. Definition of Multi-Time States (A, F, D)</em></h3>
+<ul>
+<li><p>A (Active): Alive and completed QoL questionnaire.</p></li>
+<li><p>F (Attrition): Alive, but missing QoL questionnaire.</p></li>
+<li><p>D (Death): Dead (absorbing).</p></li>
+</ul>
+<pre class="r"><code># Restrict to baseline completers
+data_main &lt;- subset(data_main, bsl_assess_complete == 1)
+
+# Define functional states
+data_main &lt;- data_main %&gt;%
+  mutate(
+    state_t0 = &quot;A&quot;,
+    state_t12 = ifelse(wk12_dead == &quot;1&quot;, &quot;D&quot;,
+                       ifelse(!is.na(fact_chg12), &quot;A&quot;, &quot;F&quot;)),
+    state_t24 = ifelse(wk24_dead == &quot;1&quot;, &quot;D&quot;,
+                       ifelse(!is.na(fact_chg24), &quot;A&quot;, &quot;F&quot;))
+  )
+
+data_main &lt;- data_main %&gt;%
+  mutate(
+    state_t0 = factor(state_t0, levels = c(&quot;A&quot;, &quot;F&quot;, &quot;D&quot;)),
+    state_t12 = factor(state_t12, levels = c(&quot;A&quot;, &quot;F&quot;, &quot;D&quot;)),
+    state_t24 = factor(state_t24, levels = c(&quot;A&quot;, &quot;F&quot;, &quot;D&quot;))
+  )</code></pre>
+</div>
+<div id="missingness-analysis-week-12-24" class="section level3">
+<h3>*6. missingness Analysis (week 12 &amp; 24)</h3>
+<pre class="r"><code>data_main &lt;- data_main %&gt;%
+  mutate(
+    missing12 = ifelse(state_t12 == &quot;F&quot;, 1, 0),
+    missing24 = ifelse(state_t24 == &quot;F&quot;, 1, 0),
+    sitetype2 = factor(ifelse(is.na(sitetype), &quot;Unknown&quot;, as.character(sitetype)),
+                       levels = c(&quot;Academic&quot;, &quot;Community&quot;, &quot;Unknown&quot;))
+  )
+
+miss_preds &lt;- c(&quot;age&quot;,&quot;sex&quot;,&quot;ecogps&quot;,&quot;fact_bl&quot;,&quot;hads_pt_anx_bl&quot;,&quot;hads_pt_dep_bl&quot;,
+                &quot;tumrtyp&quot;,&quot;arm&quot;,&quot;edu_cat&quot;,&quot;race_cat&quot;,&quot;n12&quot;,&quot;cgpart&quot;,&quot;sitetype2&quot;)
+
+# Missingness model week 12
+glm_miss12 &lt;- glm(as.formula(paste(&quot;missing12 ~&quot;, paste(miss_preds, collapse = &quot; + &quot;))),
+                  data = data_main, family = binomial)
+tidy_miss12 &lt;- tidy(glm_miss12, exponentiate = TRUE, conf.int = TRUE) %&gt;%
+  select(term, estimate, conf.low, conf.high, p.value)
+
+kable(tidy_miss12, digits = 3,
+      caption = &quot;Predictors of Missingness at Week 12 (OR, 95% CI, p)&quot;) %&gt;%
+  kable_styling(bootstrap_options = c(&quot;striped&quot;, &quot;hover&quot;, &quot;condensed&quot;))</code></pre>
+<table class="table table-striped table-hover table-condensed" style="margin-left: auto; margin-right: auto;">
+<caption>
+Predictors of Missingness at Week 12 (OR, 95% CI, p)
+</caption>
+<thead>
+<tr>
+<th style="text-align:left;">
+term
+</th>
+<th style="text-align:right;">
+estimate
+</th>
+<th style="text-align:right;">
+conf.low
+</th>
+<th style="text-align:right;">
+conf.high
+</th>
+<th style="text-align:right;">
+p.value
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+(Intercept)
+</td>
+<td style="text-align:right;">
+0.646
+</td>
+<td style="text-align:right;">
+0.022
+</td>
+<td style="text-align:right;">
+17.518
+</td>
+<td style="text-align:right;">
+0.797
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+age
+</td>
+<td style="text-align:right;">
+0.989
+</td>
+<td style="text-align:right;">
+0.962
+</td>
+<td style="text-align:right;">
+1.016
+</td>
+<td style="text-align:right;">
+0.426
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+sexm
+</td>
+<td style="text-align:right;">
+0.958
+</td>
+<td style="text-align:right;">
+0.565
+</td>
+<td style="text-align:right;">
+1.633
+</td>
+<td style="text-align:right;">
+0.873
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+ecogps
+</td>
+<td style="text-align:right;">
+0.817
+</td>
+<td style="text-align:right;">
+0.515
+</td>
+<td style="text-align:right;">
+1.292
+</td>
+<td style="text-align:right;">
+0.388
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+fact_bl
+</td>
+<td style="text-align:right;">
+1.005
+</td>
+<td style="text-align:right;">
+0.981
+</td>
+<td style="text-align:right;">
+1.030
+</td>
+<td style="text-align:right;">
+0.681
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+hads_pt_anx_bl
+</td>
+<td style="text-align:right;">
+1.106
+</td>
+<td style="text-align:right;">
+1.005
+</td>
+<td style="text-align:right;">
+1.220
+</td>
+<td style="text-align:right;">
+0.042
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+hads_pt_dep_bl
+</td>
+<td style="text-align:right;">
+0.949
+</td>
+<td style="text-align:right;">
+0.858
+</td>
+<td style="text-align:right;">
+1.046
+</td>
+<td style="text-align:right;">
+0.295
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+tumrtypHepatic/Biliary/Pancreatic/Unknown primary
+</td>
+<td style="text-align:right;">
+0.930
+</td>
+<td style="text-align:right;">
+0.341
+</td>
+<td style="text-align:right;">
+2.724
+</td>
+<td style="text-align:right;">
+0.890
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+tumrtypLung
+</td>
+<td style="text-align:right;">
+0.706
+</td>
+<td style="text-align:right;">
+0.273
+</td>
+<td style="text-align:right;">
+1.984
+</td>
+<td style="text-align:right;">
+0.485
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+arm2
+</td>
+<td style="text-align:right;">
+0.843
+</td>
+<td style="text-align:right;">
+0.437
+</td>
+<td style="text-align:right;">
+1.632
+</td>
+<td style="text-align:right;">
+0.610
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+edu_catHigh school
+</td>
+<td style="text-align:right;">
+1.837
+</td>
+<td style="text-align:right;">
+1.051
+</td>
+<td style="text-align:right;">
+3.231
+</td>
+<td style="text-align:right;">
+0.033
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+edu_catLow
+</td>
+<td style="text-align:right;">
+3.472
+</td>
+<td style="text-align:right;">
+1.415
+</td>
+<td style="text-align:right;">
+8.475
+</td>
+<td style="text-align:right;">
+0.006
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+race_catBlack
+</td>
+<td style="text-align:right;">
+0.937
+</td>
+<td style="text-align:right;">
+0.200
+</td>
+<td style="text-align:right;">
+5.359
+</td>
+<td style="text-align:right;">
+0.937
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+race_catMinority
+</td>
+<td style="text-align:right;">
+0.802
+</td>
+<td style="text-align:right;">
+0.072
+</td>
+<td style="text-align:right;">
+8.000
+</td>
+<td style="text-align:right;">
+0.849
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+race_catWhite
+</td>
+<td style="text-align:right;">
+0.955
+</td>
+<td style="text-align:right;">
+0.252
+</td>
+<td style="text-align:right;">
+4.727
+</td>
+<td style="text-align:right;">
+0.949
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+n12
+</td>
+<td style="text-align:right;">
+0.959
+</td>
+<td style="text-align:right;">
+0.835
+</td>
+<td style="text-align:right;">
+1.080
+</td>
+<td style="text-align:right;">
+0.512
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+cgpartYes
+</td>
+<td style="text-align:right;">
+0.570
+</td>
+<td style="text-align:right;">
+0.323
+</td>
+<td style="text-align:right;">
+1.012
+</td>
+<td style="text-align:right;">
+0.053
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+sitetype2Community
+</td>
+<td style="text-align:right;">
+0.914
+</td>
+<td style="text-align:right;">
+0.426
+</td>
+<td style="text-align:right;">
+1.936
+</td>
+<td style="text-align:right;">
+0.814
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+sitetype2Unknown
+</td>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+</tbody>
+</table>
+<pre class="r"><code>write.csv(tidy_miss12, file = file.path(outdir, &quot;missingness12_ORs.csv&quot;), row.names = FALSE)
+
+# Missingness model week 24
+glm_miss24 &lt;- glm(as.formula(paste(&quot;missing24 ~&quot;, paste(miss_preds, collapse = &quot; + &quot;))),
+                  data = data_main, family = binomial)
+tidy_miss24 &lt;- tidy(glm_miss24, exponentiate = TRUE, conf.int = TRUE) %&gt;%
+  select(term, estimate, conf.low, conf.high, p.value)
+
+kable(tidy_miss24, digits = 3,
+      caption = &quot;Predictors of Missingness at Week 24 (OR, 95% CI, p)&quot;) %&gt;%
+  kable_styling(bootstrap_options = c(&quot;striped&quot;, &quot;hover&quot;, &quot;condensed&quot;))</code></pre>
+<table class="table table-striped table-hover table-condensed" style="margin-left: auto; margin-right: auto;">
+<caption>
+Predictors of Missingness at Week 24 (OR, 95% CI, p)
+</caption>
+<thead>
+<tr>
+<th style="text-align:left;">
+term
+</th>
+<th style="text-align:right;">
+estimate
+</th>
+<th style="text-align:right;">
+conf.low
+</th>
+<th style="text-align:right;">
+conf.high
+</th>
+<th style="text-align:right;">
+p.value
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+(Intercept)
+</td>
+<td style="text-align:right;">
+2.298
+</td>
+<td style="text-align:right;">
+0.084
+</td>
+<td style="text-align:right;">
+62.831
+</td>
+<td style="text-align:right;">
+0.621
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+age
+</td>
+<td style="text-align:right;">
+0.994
+</td>
+<td style="text-align:right;">
+0.966
+</td>
+<td style="text-align:right;">
+1.022
+</td>
+<td style="text-align:right;">
+0.651
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+sexm
+</td>
+<td style="text-align:right;">
+1.362
+</td>
+<td style="text-align:right;">
+0.797
+</td>
+<td style="text-align:right;">
+2.355
+</td>
+<td style="text-align:right;">
+0.262
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+ecogps
+</td>
+<td style="text-align:right;">
+1.061
+</td>
+<td style="text-align:right;">
+0.660
+</td>
+<td style="text-align:right;">
+1.708
+</td>
+<td style="text-align:right;">
+0.807
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+fact_bl
+</td>
+<td style="text-align:right;">
+1.000
+</td>
+<td style="text-align:right;">
+0.976
+</td>
+<td style="text-align:right;">
+1.025
+</td>
+<td style="text-align:right;">
+0.995
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+hads_pt_anx_bl
+</td>
+<td style="text-align:right;">
+1.025
+</td>
+<td style="text-align:right;">
+0.929
+</td>
+<td style="text-align:right;">
+1.131
+</td>
+<td style="text-align:right;">
+0.623
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+hads_pt_dep_bl
+</td>
+<td style="text-align:right;">
+0.963
+</td>
+<td style="text-align:right;">
+0.868
+</td>
+<td style="text-align:right;">
+1.065
+</td>
+<td style="text-align:right;">
+0.468
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+tumrtypHepatic/Biliary/Pancreatic/Unknown primary
+</td>
+<td style="text-align:right;">
+0.527
+</td>
+<td style="text-align:right;">
+0.189
+</td>
+<td style="text-align:right;">
+1.538
+</td>
+<td style="text-align:right;">
+0.227
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+tumrtypLung
+</td>
+<td style="text-align:right;">
+0.651
+</td>
+<td style="text-align:right;">
+0.253
+</td>
+<td style="text-align:right;">
+1.779
+</td>
+<td style="text-align:right;">
+0.383
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+arm2
+</td>
+<td style="text-align:right;">
+0.484
+</td>
+<td style="text-align:right;">
+0.233
+</td>
+<td style="text-align:right;">
+0.994
+</td>
+<td style="text-align:right;">
+0.049
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+edu_catHigh school
+</td>
+<td style="text-align:right;">
+0.816
+</td>
+<td style="text-align:right;">
+0.457
+</td>
+<td style="text-align:right;">
+1.438
+</td>
+<td style="text-align:right;">
+0.484
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+edu_catLow
+</td>
+<td style="text-align:right;">
+1.631
+</td>
+<td style="text-align:right;">
+0.642
+</td>
+<td style="text-align:right;">
+4.017
+</td>
+<td style="text-align:right;">
+0.292
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+race_catBlack
+</td>
+<td style="text-align:right;">
+1.108
+</td>
+<td style="text-align:right;">
+0.251
+</td>
+<td style="text-align:right;">
+5.441
+</td>
+<td style="text-align:right;">
+0.895
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+race_catMinority
+</td>
+<td style="text-align:right;">
+0.283
+</td>
+<td style="text-align:right;">
+0.012
+</td>
+<td style="text-align:right;">
+3.065
+</td>
+<td style="text-align:right;">
+0.337
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+race_catWhite
+</td>
+<td style="text-align:right;">
+0.735
+</td>
+<td style="text-align:right;">
+0.208
+</td>
+<td style="text-align:right;">
+3.019
+</td>
+<td style="text-align:right;">
+0.644
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+n12
+</td>
+<td style="text-align:right;">
+0.760
+</td>
+<td style="text-align:right;">
+0.624
+</td>
+<td style="text-align:right;">
+0.905
+</td>
+<td style="text-align:right;">
+0.004
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+cgpartYes
+</td>
+<td style="text-align:right;">
+0.801
+</td>
+<td style="text-align:right;">
+0.447
+</td>
+<td style="text-align:right;">
+1.454
+</td>
+<td style="text-align:right;">
+0.459
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+sitetype2Community
+</td>
+<td style="text-align:right;">
+1.081
+</td>
+<td style="text-align:right;">
+0.509
+</td>
+<td style="text-align:right;">
+2.281
+</td>
+<td style="text-align:right;">
+0.838
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+sitetype2Unknown
+</td>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+</tbody>
+</table>
+<pre class="r"><code>write.csv(tidy_miss24, file = file.path(outdir, &quot;missingness24_ORs.csv&quot;), row.names = FALSE)</code></pre>
+</div>
+<div
+id="flow-of-patients-between-states-transition-counts-from-t0t12-and-t12t24."
+class="section level3">
+<h3><em>7. Flow of patients between states (transition counts from
+T0→T12 and T12→T24).</em></h3>
+<pre class="r"><code>tab_t0_t12 &lt;- table(data_main$state_t0, data_main$state_t12)
+prop_t0_t12 &lt;- prop.table(tab_t0_t12, margin = 1)
+tab_fmt_t0_t12 &lt;- matrix(
+  paste0(tab_t0_t12, &quot; (&quot;, round(100*prop_t0_t12, 1), &quot;%)&quot;),
+  nrow = nrow(tab_t0_t12), dimnames = dimnames(tab_t0_t12)
+)
+
+kable(tab_fmt_t0_t12, caption = &quot;Transition T0 → T12 (n, %)&quot;) %&gt;%
+  kable_styling(bootstrap_options = c(&quot;striped&quot;, &quot;hover&quot;, &quot;condensed&quot;))</code></pre>
+<table class="table table-striped table-hover table-condensed" style="margin-left: auto; margin-right: auto;">
+<caption>
+Transition T0 → T12 (n, %)
+</caption>
+<thead>
+<tr>
+<th style="text-align:left;">
+</th>
+<th style="text-align:left;">
+A
+</th>
+<th style="text-align:left;">
+F
+</th>
+<th style="text-align:left;">
+D
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+A
+</td>
+<td style="text-align:left;">
+192 (54.5%)
+</td>
+<td style="text-align:left;">
+102 (29%)
+</td>
+<td style="text-align:left;">
+58 (16.5%)
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+F
+</td>
+<td style="text-align:left;">
+0 (NaN%)
+</td>
+<td style="text-align:left;">
+0 (NaN%)
+</td>
+<td style="text-align:left;">
+0 (NaN%)
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+D
+</td>
+<td style="text-align:left;">
+0 (NaN%)
+</td>
+<td style="text-align:left;">
+0 (NaN%)
+</td>
+<td style="text-align:left;">
+0 (NaN%)
+</td>
+</tr>
+</tbody>
+</table>
+<pre class="r"><code>tab_t12_t24 &lt;- table(data_main$state_t12, data_main$state_t24)
+prop_t12_t24 &lt;- prop.table(tab_t12_t24, margin = 1)
+tab_fmt_t12_t24 &lt;- matrix(
+  paste0(tab_t12_t24, &quot; (&quot;, round(100*prop_t12_t24, 1), &quot;%)&quot;),
+  nrow = nrow(tab_t12_t24), dimnames = dimnames(tab_t12_t24)
+)
+
+kable(tab_fmt_t12_t24, caption = &quot;Transition T12 → T24 (n, %)&quot;) %&gt;%
+  kable_styling(bootstrap_options = c(&quot;striped&quot;, &quot;hover&quot;, &quot;condensed&quot;))</code></pre>
+<table class="table table-striped table-hover table-condensed" style="margin-left: auto; margin-right: auto;">
+<caption>
+Transition T12 → T24 (n, %)
+</caption>
+<thead>
+<tr>
+<th style="text-align:left;">
+</th>
+<th style="text-align:left;">
+A
+</th>
+<th style="text-align:left;">
+F
+</th>
+<th style="text-align:left;">
+D
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+A
+</td>
+<td style="text-align:left;">
+128 (66.7%)
+</td>
+<td style="text-align:left;">
+41 (21.4%)
+</td>
+<td style="text-align:left;">
+23 (12%)
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+F
+</td>
+<td style="text-align:left;">
+20 (19.6%)
+</td>
+<td style="text-align:left;">
+53 (52%)
+</td>
+<td style="text-align:left;">
+29 (28.4%)
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+D
+</td>
+<td style="text-align:left;">
+0 (0%)
+</td>
+<td style="text-align:left;">
+0 (0%)
+</td>
+<td style="text-align:left;">
+58 (100%)
+</td>
+</tr>
+</tbody>
+</table>
+<pre class="r"><code>write.csv(tab_t0_t12, file.path(outdir, &quot;Transition_T0_T12.csv&quot;))
+write.csv(tab_t12_t24, file.path(outdir, &quot;Transition_T12_T24.csv&quot;))</code></pre>
+<p><em>patients’ flow diagram</em></p>
+<pre class="r"><code>library(DiagrammeR)
+library(DiagrammeRsvg)
+library(rsvg)
+library(glue)
+
+# === 1. Calcul des transitions réelles ===
+# T0 -&gt; T12
+tab_t0_t12 &lt;- table(data_main$state_t0, data_main$state_t12)
+prop_t0_t12 &lt;- prop.table(tab_t0_t12, margin = 1) * 100
+
+n_T0A_T12A &lt;- tab_t0_t12[&quot;A&quot;,&quot;A&quot;]; p_T0A_T12A &lt;- round(prop_t0_t12[&quot;A&quot;,&quot;A&quot;],1)
+n_T0A_T12D &lt;- tab_t0_t12[&quot;A&quot;,&quot;D&quot;]; p_T0A_T12D &lt;- round(prop_t0_t12[&quot;A&quot;,&quot;D&quot;],1)
+n_T0A_T12F &lt;- tab_t0_t12[&quot;A&quot;,&quot;F&quot;]; p_T0A_T12F &lt;- round(prop_t0_t12[&quot;A&quot;,&quot;F&quot;],1)
+
+# T12 -&gt; T24
+tab_t12_t24 &lt;- table(data_main$state_t12, data_main$state_t24)
+prop_t12_t24 &lt;- prop.table(tab_t12_t24, margin = 1) * 100
+
+n_T12A_T24A &lt;- tab_t12_t24[&quot;A&quot;,&quot;A&quot;]; p_T12A_T24A &lt;- round(prop_t12_t24[&quot;A&quot;,&quot;A&quot;],1)
+n_T12A_T24D &lt;- tab_t12_t24[&quot;A&quot;,&quot;D&quot;]; p_T12A_T24D &lt;- round(prop_t12_t24[&quot;A&quot;,&quot;D&quot;],1)
+n_T12A_T24F &lt;- tab_t12_t24[&quot;A&quot;,&quot;F&quot;]; p_T12A_T24F &lt;- round(prop_t12_t24[&quot;A&quot;,&quot;F&quot;],1)
+
+n_T12D_T24D &lt;- tab_t12_t24[&quot;D&quot;,&quot;D&quot;]; p_T12D_T24D &lt;- round(prop_t12_t24[&quot;D&quot;,&quot;D&quot;],1)
+
+n_T12F_T24A &lt;- tab_t12_t24[&quot;F&quot;,&quot;A&quot;]; p_T12F_T24A &lt;- round(prop_t12_t24[&quot;F&quot;,&quot;A&quot;],1)
+n_T12F_T24D &lt;- tab_t12_t24[&quot;F&quot;,&quot;D&quot;]; p_T12F_T24D &lt;- round(prop_t12_t24[&quot;F&quot;,&quot;D&quot;],1)
+n_T12F_T24F &lt;- tab_t12_t24[&quot;F&quot;,&quot;F&quot;]; p_T12F_T24F &lt;- round(prop_t12_t24[&quot;F&quot;,&quot;F&quot;],1)
+
+# === 2. Construction des labels dynamiques ===
+lbl_T0A_T12A &lt;- glue(&quot;{n_T0A_T12A} ({p_T0A_T12A}%)&quot;)
+lbl_T0A_T12D &lt;- glue(&quot;{n_T0A_T12D} ({p_T0A_T12D}%)&quot;)
+lbl_T0A_T12F &lt;- glue(&quot;{n_T0A_T12F} ({p_T0A_T12F}%)&quot;)
+
+lbl_T12A_T24A &lt;- glue(&quot;{n_T12A_T24A} ({p_T12A_T24A}%)&quot;)
+lbl_T12A_T24D &lt;- glue(&quot;{n_T12A_T24D} ({p_T12A_T24D}%)&quot;)
+lbl_T12A_T24F &lt;- glue(&quot;{n_T12A_T24F} ({p_T12A_T24F}%)&quot;)
+
+lbl_T12D_T24D &lt;- glue(&quot;{n_T12D_T24D} ({p_T12D_T24D}%)&quot;)
+
+lbl_T12F_T24A &lt;- glue(&quot;{n_T12F_T24A} ({p_T12F_T24A}%)&quot;)
+lbl_T12F_T24D &lt;- glue(&quot;{n_T12F_T24D} ({p_T12F_T24D}%)&quot;)
+lbl_T12F_T24F &lt;- glue(&quot;{n_T12F_T24F} ({p_T12F_T24F}%)&quot;)
+
+# === 3. Création du graphe dynamique ===
+graph_code &lt;- glue(&quot;
+digraph multi_state {{
+  graph [layout = dot, rankdir = LR]
+
+  node [style = filled, fontsize = 12, fontname = Helvetica, penwidth = 1.5]
+  edge [fontsize = 11, fontname = Helvetica, penwidth = 1.2, color = gray40]
+
+  # États T0
+  T0A [label = &#39;T0: A&#39;, shape = box, fillcolor = lightblue, color = navy]
+
+  # États T12
+  T12A [label = &#39;T12: A&#39;, shape = box, fillcolor = lightblue, color = navy]
+  T12D [label = &#39;T12: D&#39;, shape = diamond, fillcolor = lightpink, color = firebrick]
+  T12F [label = &#39;T12: F&#39;, shape = ellipse, fillcolor = lightgoldenrod, color = goldenrod4]
+
+  # États T24
+  T24A [label = &#39;T24: A&#39;, shape = box, fillcolor = lightblue, color = navy]
+  T24D [label = &#39;T24: D&#39;, shape = diamond, fillcolor = lightpink, color = firebrick]
+  T24F [label = &#39;T24: F&#39;, shape = ellipse, fillcolor = lightgoldenrod, color = goldenrod4]
+
+  # Transitions T0 → T12
+  T0A -&gt; T12A [label = &#39;{lbl_T0A_T12A}&#39;, color = navy, fontcolor = navy]
+  T0A -&gt; T12D [label = &#39;{lbl_T0A_T12D}&#39;, color = firebrick, fontcolor = firebrick]
+  T0A -&gt; T12F [label = &#39;{lbl_T0A_T12F}&#39;, color = goldenrod4, fontcolor = goldenrod4]
+
+  # Transitions T12 → T24
+  T12A -&gt; T24A [label = &#39;{lbl_T12A_T24A}&#39;, color = navy, fontcolor = navy]
+  T12A -&gt; T24D [label = &#39;{lbl_T12A_T24D}&#39;, color = firebrick, fontcolor = firebrick]
+  T12A -&gt; T24F [label = &#39;{lbl_T12A_T24F}&#39;, color = goldenrod4, fontcolor = goldenrod4]
+
+  T12D -&gt; T24D [label = &#39;{lbl_T12D_T24D}&#39;, color = firebrick, fontcolor = firebrick]
+
+  T12F -&gt; T24A [label = &#39;{lbl_T12F_T24A}&#39;, color = navy, fontcolor = navy]
+  T12F -&gt; T24D [label = &#39;{lbl_T12F_T24D}&#39;, color = firebrick, fontcolor = firebrick]
+  T12F -&gt; T24F [label = &#39;{lbl_T12F_T24F}&#39;, color = goldenrod4, fontcolor = goldenrod4]
+}}
+&quot;)
+
+# === 4. Afficher le graphe dans le rapport ===
+multi_state_graph &lt;- grViz(graph_code)
+multi_state_graph</code></pre>
+<div class="grViz html-widget html-fill-item" id="htmlwidget-30f8aba79bee38a1f820" style="width:672px;height:480px;"></div>
+<script type="application/json" data-for="htmlwidget-30f8aba79bee38a1f820">{"x":{"diagram":"digraph multi_state {\n  graph [layout = dot, rankdir = LR]\n\n  node [style = filled, fontsize = 12, fontname = Helvetica, penwidth = 1.5]\n  edge [fontsize = 11, fontname = Helvetica, penwidth = 1.2, color = gray40]\n\n  # États T0\n  T0A [label = \"T0: A\", shape = box, fillcolor = lightblue, color = navy]\n\n  # États T12\n  T12A [label = \"T12: A\", shape = box, fillcolor = lightblue, color = navy]\n  T12D [label = \"T12: D\", shape = diamond, fillcolor = lightpink, color = firebrick]\n  T12F [label = \"T12: F\", shape = ellipse, fillcolor = lightgoldenrod, color = goldenrod4]\n\n  # États T24\n  T24A [label = \"T24: A\", shape = box, fillcolor = lightblue, color = navy]\n  T24D [label = \"T24: D\", shape = diamond, fillcolor = lightpink, color = firebrick]\n  T24F [label = \"T24: F\", shape = ellipse, fillcolor = lightgoldenrod, color = goldenrod4]\n\n  # Transitions T0 → T12\n  T0A -> T12A [label = \"192 (54.5%)\", color = navy, fontcolor = navy]\n  T0A -> T12D [label = \"58 (16.5%)\", color = firebrick, fontcolor = firebrick]\n  T0A -> T12F [label = \"102 (29%)\", color = goldenrod4, fontcolor = goldenrod4]\n\n  # Transitions T12 → T24\n  T12A -> T24A [label = \"128 (66.7%)\", color = navy, fontcolor = navy]\n  T12A -> T24D [label = \"23 (12%)\", color = firebrick, fontcolor = firebrick]\n  T12A -> T24F [label = \"41 (21.4%)\", color = goldenrod4, fontcolor = goldenrod4]\n\n  T12D -> T24D [label = \"58 (100%)\", color = firebrick, fontcolor = firebrick]\n\n  T12F -> T24A [label = \"20 (19.6%)\", color = navy, fontcolor = navy]\n  T12F -> T24D [label = \"29 (28.4%)\", color = firebrick, fontcolor = firebrick]\n  T12F -> T24F [label = \"53 (52%)\", color = goldenrod4, fontcolor = goldenrod4]\n}","config":{"engine":"dot","options":null}},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code># === 5. Exporter en PNG ===
+grViz_svg &lt;- export_svg(grViz(graph_code))
+rsvg_png(charToRaw(grViz_svg), file.path(outdir, &quot;multi_state_diagram_dynamic.png&quot;))
+
+message(&quot;✅ Diagramme multi-état dynamique exporté dans: &quot;, file.path(outdir, &quot;multi_state_diagram_dynamic.png&quot;))</code></pre>
+</div>
+<div id="baseline-characteristics-global-and-by-attrition-status"
+class="section level3">
+<h3>8. Baseline characteristics (global and by attrition status)</h3>
+<pre class="r"><code>vars &lt;- c(&quot;age&quot;,&quot;sex&quot;,&quot;ecogps&quot;,&quot;fact_bl&quot;,&quot;hads_pt_anx_bl&quot;,&quot;hads_pt_dep_bl&quot;,
+          &quot;tumrtyp&quot;,&quot;arm&quot;,&quot;edu_cat&quot;,&quot;race_cat&quot;,&quot;marital_cat&quot;,&quot;n12&quot;,&quot;cgpart&quot;)
+
+tab_overall &lt;- CreateTableOne(vars = vars, data = data_main)
+tab_by_t12 &lt;- CreateTableOne(vars = vars, strata = &quot;state_t12&quot;, data = data_main, addOverall = TRUE)
+tab_by_t24 &lt;- CreateTableOne(vars = vars, strata = &quot;state_t24&quot;, data = data_main, addOverall = TRUE)
+
+kable(as.data.frame(print(tab_overall, printToggle = FALSE)), 
+      caption = &quot;Baseline Characteristics — Overall&quot;) %&gt;%
+  kable_styling(bootstrap_options = c(&quot;striped&quot;, &quot;hover&quot;, &quot;condensed&quot;))</code></pre>
+<table class="table table-striped table-hover table-condensed" style="margin-left: auto; margin-right: auto;">
+<caption>
+Baseline Characteristics — Overall
+</caption>
+<thead>
+<tr>
+<th style="text-align:left;">
+</th>
+<th style="text-align:left;">
+Overall
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+n
+</td>
+<td style="text-align:left;">
+352
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+age (mean (SD))
+</td>
+<td style="text-align:left;">
+65.28 (9.94)
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+sex = m (%)
+</td>
+<td style="text-align:left;">
+196 (55.7)
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+ecogps (mean (SD))
+</td>
+<td style="text-align:left;">
+0.94 (0.62)
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+fact_bl (mean (SD))
+</td>
+<td style="text-align:left;">
+73.79 (16.39)
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+hads_pt_anx_bl (mean (SD))
+</td>
+<td style="text-align:left;">
+7.22 (3.54)
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+hads_pt_dep_bl (mean (SD))
+</td>
+<td style="text-align:left;">
+5.62 (4.23)
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+tumrtyp (%)
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Esophageal/GEJ/Gastric
+</td>
+<td style="text-align:left;">
+28 ( 8.0)
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Hepatic/Biliary/Pancreatic/Unknown primary
+</td>
+<td style="text-align:left;">
+111 (31.5)
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Lung
+</td>
+<td style="text-align:left;">
+213 (60.5)
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+arm = 2 (%)
+</td>
+<td style="text-align:left;">
+183 (52.0)
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+edu_cat (%)
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+College+
+</td>
+<td style="text-align:left;">
+177 (52.2)
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+High school
+</td>
+<td style="text-align:left;">
+128 (37.8)
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Low
+</td>
+<td style="text-align:left;">
+34 (10.0)
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+race_cat (%)
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Asian
+</td>
+<td style="text-align:left;">
+14 ( 4.2)
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Black
+</td>
+<td style="text-align:left;">
+42 (12.5)
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Minority
+</td>
+<td style="text-align:left;">
+6 ( 1.8)
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+White
+</td>
+<td style="text-align:left;">
+274 (81.5)
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+marital_cat = Not married (%)
+</td>
+<td style="text-align:left;">
+130 (37.7)
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+n12 (mean (SD))
+</td>
+<td style="text-align:left;">
+1.81 (2.38)
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+cgpart = Yes (%)
+</td>
+<td style="text-align:left;">
+248 (70.5)
+</td>
+</tr>
+</tbody>
+</table>
+<pre class="r"><code>kable(as.data.frame(print(tab_by_t12, printToggle = FALSE)),
+      caption = &quot;Baseline Characteristics by State (Week 12)&quot;) %&gt;%
+  kable_styling(bootstrap_options = c(&quot;striped&quot;, &quot;hover&quot;, &quot;condensed&quot;))</code></pre>
+<table class="table table-striped table-hover table-condensed" style="margin-left: auto; margin-right: auto;">
+<caption>
+Baseline Characteristics by State (Week 12)
+</caption>
+<thead>
+<tr>
+<th style="text-align:left;">
+</th>
+<th style="text-align:left;">
+Overall
+</th>
+<th style="text-align:left;">
+A
+</th>
+<th style="text-align:left;">
+F
+</th>
+<th style="text-align:left;">
+D
+</th>
+<th style="text-align:left;">
+p
+</th>
+<th style="text-align:left;">
+test
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+n
+</td>
+<td style="text-align:left;">
+352
+</td>
+<td style="text-align:left;">
+192
+</td>
+<td style="text-align:left;">
+102
+</td>
+<td style="text-align:left;">
+58
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+age (mean (SD))
+</td>
+<td style="text-align:left;">
+65.28 (9.94)
+</td>
+<td style="text-align:left;">
+64.80 (10.32)
+</td>
+<td style="text-align:left;">
+63.97 (9.25)
+</td>
+<td style="text-align:left;">
+69.16 (8.99)
+</td>
+<td style="text-align:left;">
+0.004
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+sex = m (%)
+</td>
+<td style="text-align:left;">
+196 (55.7)
+</td>
+<td style="text-align:left;">
+114 (59.4)
+</td>
+<td style="text-align:left;">
+54 (52.9)
+</td>
+<td style="text-align:left;">
+28 (48.3)
+</td>
+<td style="text-align:left;">
+0.264
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+ecogps (mean (SD))
+</td>
+<td style="text-align:left;">
+0.94 (0.62)
+</td>
+<td style="text-align:left;">
+0.85 (0.60)
+</td>
+<td style="text-align:left;">
+0.90 (0.57)
+</td>
+<td style="text-align:left;">
+1.31 (0.65)
+</td>
+<td style="text-align:left;">
+&lt;0.001
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+fact_bl (mean (SD))
+</td>
+<td style="text-align:left;">
+73.79 (16.39)
+</td>
+<td style="text-align:left;">
+76.33 (15.58)
+</td>
+<td style="text-align:left;">
+73.25 (16.40)
+</td>
+<td style="text-align:left;">
+66.31 (16.89)
+</td>
+<td style="text-align:left;">
+&lt;0.001
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+hads_pt_anx_bl (mean (SD))
+</td>
+<td style="text-align:left;">
+7.22 (3.54)
+</td>
+<td style="text-align:left;">
+6.80 (3.22)
+</td>
+<td style="text-align:left;">
+7.91 (3.84)
+</td>
+<td style="text-align:left;">
+7.40 (3.86)
+</td>
+<td style="text-align:left;">
+0.033
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+hads_pt_dep_bl (mean (SD))
+</td>
+<td style="text-align:left;">
+5.62 (4.23)
+</td>
+<td style="text-align:left;">
+4.85 (3.65)
+</td>
+<td style="text-align:left;">
+5.80 (4.63)
+</td>
+<td style="text-align:left;">
+7.86 (4.49)
+</td>
+<td style="text-align:left;">
+&lt;0.001
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+tumrtyp (%)
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+0.334
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Esophageal/GEJ/Gastric
+</td>
+<td style="text-align:left;">
+28 ( 8.0)
+</td>
+<td style="text-align:left;">
+15 ( 7.8)
+</td>
+<td style="text-align:left;">
+10 ( 9.8)
+</td>
+<td style="text-align:left;">
+3 ( 5.2)
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Hepatic/Biliary/Pancreatic/Unknown primary
+</td>
+<td style="text-align:left;">
+111 (31.5)
+</td>
+<td style="text-align:left;">
+53 (27.6)
+</td>
+<td style="text-align:left;">
+35 (34.3)
+</td>
+<td style="text-align:left;">
+23 (39.7)
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Lung
+</td>
+<td style="text-align:left;">
+213 (60.5)
+</td>
+<td style="text-align:left;">
+124 (64.6)
+</td>
+<td style="text-align:left;">
+57 (55.9)
+</td>
+<td style="text-align:left;">
+32 (55.2)
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+arm = 2 (%)
+</td>
+<td style="text-align:left;">
+183 (52.0)
+</td>
+<td style="text-align:left;">
+100 (52.1)
+</td>
+<td style="text-align:left;">
+51 (50.0)
+</td>
+<td style="text-align:left;">
+32 (55.2)
+</td>
+<td style="text-align:left;">
+0.820
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+edu_cat (%)
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+0.096
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+College+
+</td>
+<td style="text-align:left;">
+177 (52.2)
+</td>
+<td style="text-align:left;">
+110 (58.8)
+</td>
+<td style="text-align:left;">
+41 (42.7)
+</td>
+<td style="text-align:left;">
+26 (46.4)
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+High school
+</td>
+<td style="text-align:left;">
+128 (37.8)
+</td>
+<td style="text-align:left;">
+62 (33.2)
+</td>
+<td style="text-align:left;">
+42 (43.8)
+</td>
+<td style="text-align:left;">
+24 (42.9)
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Low
+</td>
+<td style="text-align:left;">
+34 (10.0)
+</td>
+<td style="text-align:left;">
+15 ( 8.0)
+</td>
+<td style="text-align:left;">
+13 (13.5)
+</td>
+<td style="text-align:left;">
+6 (10.7)
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+race_cat (%)
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+0.972
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Asian
+</td>
+<td style="text-align:left;">
+14 ( 4.2)
+</td>
+<td style="text-align:left;">
+8 ( 4.3)
+</td>
+<td style="text-align:left;">
+4 ( 4.4)
+</td>
+<td style="text-align:left;">
+2 ( 3.5)
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Black
+</td>
+<td style="text-align:left;">
+42 (12.5)
+</td>
+<td style="text-align:left;">
+22 (11.7)
+</td>
+<td style="text-align:left;">
+14 (15.4)
+</td>
+<td style="text-align:left;">
+6 (10.5)
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Minority
+</td>
+<td style="text-align:left;">
+6 ( 1.8)
+</td>
+<td style="text-align:left;">
+3 ( 1.6)
+</td>
+<td style="text-align:left;">
+2 ( 2.2)
+</td>
+<td style="text-align:left;">
+1 ( 1.8)
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+White
+</td>
+<td style="text-align:left;">
+274 (81.5)
+</td>
+<td style="text-align:left;">
+155 (82.4)
+</td>
+<td style="text-align:left;">
+71 (78.0)
+</td>
+<td style="text-align:left;">
+48 (84.2)
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+marital_cat = Not married (%)
+</td>
+<td style="text-align:left;">
+130 (37.7)
+</td>
+<td style="text-align:left;">
+65 (34.6)
+</td>
+<td style="text-align:left;">
+41 (41.0)
+</td>
+<td style="text-align:left;">
+24 (42.1)
+</td>
+<td style="text-align:left;">
+0.424
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+n12 (mean (SD))
+</td>
+<td style="text-align:left;">
+1.81 (2.38)
+</td>
+<td style="text-align:left;">
+1.64 (1.91)
+</td>
+<td style="text-align:left;">
+1.79 (2.81)
+</td>
+<td style="text-align:left;">
+2.41 (2.85)
+</td>
+<td style="text-align:left;">
+0.092
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+cgpart = Yes (%)
+</td>
+<td style="text-align:left;">
+248 (70.5)
+</td>
+<td style="text-align:left;">
+142 (74.0)
+</td>
+<td style="text-align:left;">
+65 (63.7)
+</td>
+<td style="text-align:left;">
+41 (70.7)
+</td>
+<td style="text-align:left;">
+0.187
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+</tbody>
+</table>
+<pre class="r"><code>kable(as.data.frame(print(tab_by_t24, printToggle = FALSE)),
+      caption = &quot;Baseline Characteristics by State (Week 24)&quot;) %&gt;%
+  kable_styling(bootstrap_options = c(&quot;striped&quot;, &quot;hover&quot;, &quot;condensed&quot;))</code></pre>
+<table class="table table-striped table-hover table-condensed" style="margin-left: auto; margin-right: auto;">
+<caption>
+Baseline Characteristics by State (Week 24)
+</caption>
+<thead>
+<tr>
+<th style="text-align:left;">
+</th>
+<th style="text-align:left;">
+Overall
+</th>
+<th style="text-align:left;">
+A
+</th>
+<th style="text-align:left;">
+F
+</th>
+<th style="text-align:left;">
+D
+</th>
+<th style="text-align:left;">
+p
+</th>
+<th style="text-align:left;">
+test
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+n
+</td>
+<td style="text-align:left;">
+352
+</td>
+<td style="text-align:left;">
+148
+</td>
+<td style="text-align:left;">
+94
+</td>
+<td style="text-align:left;">
+110
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+age (mean (SD))
+</td>
+<td style="text-align:left;">
+65.28 (9.94)
+</td>
+<td style="text-align:left;">
+65.03 (10.43)
+</td>
+<td style="text-align:left;">
+64.45 (9.28)
+</td>
+<td style="text-align:left;">
+66.33 (9.80)
+</td>
+<td style="text-align:left;">
+0.373
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+sex = m (%)
+</td>
+<td style="text-align:left;">
+196 (55.7)
+</td>
+<td style="text-align:left;">
+82 (55.4)
+</td>
+<td style="text-align:left;">
+56 (59.6)
+</td>
+<td style="text-align:left;">
+58 (52.7)
+</td>
+<td style="text-align:left;">
+0.615
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+ecogps (mean (SD))
+</td>
+<td style="text-align:left;">
+0.94 (0.62)
+</td>
+<td style="text-align:left;">
+0.80 (0.58)
+</td>
+<td style="text-align:left;">
+0.96 (0.60)
+</td>
+<td style="text-align:left;">
+1.13 (0.64)
+</td>
+<td style="text-align:left;">
+&lt;0.001
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+fact_bl (mean (SD))
+</td>
+<td style="text-align:left;">
+73.79 (16.39)
+</td>
+<td style="text-align:left;">
+76.72 (15.71)
+</td>
+<td style="text-align:left;">
+74.16 (15.85)
+</td>
+<td style="text-align:left;">
+69.52 (16.97)
+</td>
+<td style="text-align:left;">
+0.002
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+hads_pt_anx_bl (mean (SD))
+</td>
+<td style="text-align:left;">
+7.22 (3.54)
+</td>
+<td style="text-align:left;">
+7.27 (3.29)
+</td>
+<td style="text-align:left;">
+7.27 (3.84)
+</td>
+<td style="text-align:left;">
+7.11 (3.64)
+</td>
+<td style="text-align:left;">
+0.927
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+hads_pt_dep_bl (mean (SD))
+</td>
+<td style="text-align:left;">
+5.62 (4.23)
+</td>
+<td style="text-align:left;">
+4.95 (3.72)
+</td>
+<td style="text-align:left;">
+5.46 (4.30)
+</td>
+<td style="text-align:left;">
+6.68 (4.61)
+</td>
+<td style="text-align:left;">
+0.004
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+tumrtyp (%)
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+0.532
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Esophageal/GEJ/Gastric
+</td>
+<td style="text-align:left;">
+28 ( 8.0)
+</td>
+<td style="text-align:left;">
+8 ( 5.4)
+</td>
+<td style="text-align:left;">
+10 (10.6)
+</td>
+<td style="text-align:left;">
+10 ( 9.1)
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Hepatic/Biliary/Pancreatic/Unknown primary
+</td>
+<td style="text-align:left;">
+111 (31.5)
+</td>
+<td style="text-align:left;">
+48 (32.4)
+</td>
+<td style="text-align:left;">
+26 (27.7)
+</td>
+<td style="text-align:left;">
+37 (33.6)
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Lung
+</td>
+<td style="text-align:left;">
+213 (60.5)
+</td>
+<td style="text-align:left;">
+92 (62.2)
+</td>
+<td style="text-align:left;">
+58 (61.7)
+</td>
+<td style="text-align:left;">
+63 (57.3)
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+arm = 2 (%)
+</td>
+<td style="text-align:left;">
+183 (52.0)
+</td>
+<td style="text-align:left;">
+80 (54.1)
+</td>
+<td style="text-align:left;">
+43 (45.7)
+</td>
+<td style="text-align:left;">
+60 (54.5)
+</td>
+<td style="text-align:left;">
+0.366
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+edu_cat (%)
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+0.855
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+College+
+</td>
+<td style="text-align:left;">
+177 (52.2)
+</td>
+<td style="text-align:left;">
+75 (52.4)
+</td>
+<td style="text-align:left;">
+49 (53.8)
+</td>
+<td style="text-align:left;">
+53 (50.5)
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+High school
+</td>
+<td style="text-align:left;">
+128 (37.8)
+</td>
+<td style="text-align:left;">
+54 (37.8)
+</td>
+<td style="text-align:left;">
+31 (34.1)
+</td>
+<td style="text-align:left;">
+43 (41.0)
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Low
+</td>
+<td style="text-align:left;">
+34 (10.0)
+</td>
+<td style="text-align:left;">
+14 ( 9.8)
+</td>
+<td style="text-align:left;">
+11 (12.1)
+</td>
+<td style="text-align:left;">
+9 ( 8.6)
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+race_cat (%)
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+0.683
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Asian
+</td>
+<td style="text-align:left;">
+14 ( 4.2)
+</td>
+<td style="text-align:left;">
+7 ( 4.9)
+</td>
+<td style="text-align:left;">
+4 ( 4.7)
+</td>
+<td style="text-align:left;">
+3 ( 2.8)
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Black
+</td>
+<td style="text-align:left;">
+42 (12.5)
+</td>
+<td style="text-align:left;">
+17 (11.8)
+</td>
+<td style="text-align:left;">
+15 (17.4)
+</td>
+<td style="text-align:left;">
+10 ( 9.4)
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Minority
+</td>
+<td style="text-align:left;">
+6 ( 1.8)
+</td>
+<td style="text-align:left;">
+3 ( 2.1)
+</td>
+<td style="text-align:left;">
+1 ( 1.2)
+</td>
+<td style="text-align:left;">
+2 ( 1.9)
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+White
+</td>
+<td style="text-align:left;">
+274 (81.5)
+</td>
+<td style="text-align:left;">
+117 (81.2)
+</td>
+<td style="text-align:left;">
+66 (76.7)
+</td>
+<td style="text-align:left;">
+91 (85.8)
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+marital_cat = Not married (%)
+</td>
+<td style="text-align:left;">
+130 (37.7)
+</td>
+<td style="text-align:left;">
+52 (35.6)
+</td>
+<td style="text-align:left;">
+33 (35.5)
+</td>
+<td style="text-align:left;">
+45 (42.5)
+</td>
+<td style="text-align:left;">
+0.476
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+n12 (mean (SD))
+</td>
+<td style="text-align:left;">
+1.81 (2.38)
+</td>
+<td style="text-align:left;">
+1.69 (1.95)
+</td>
+<td style="text-align:left;">
+1.37 (1.95)
+</td>
+<td style="text-align:left;">
+2.35 (3.07)
+</td>
+<td style="text-align:left;">
+0.010
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+cgpart = Yes (%)
+</td>
+<td style="text-align:left;">
+248 (70.5)
+</td>
+<td style="text-align:left;">
+108 (73.0)
+</td>
+<td style="text-align:left;">
+65 (69.1)
+</td>
+<td style="text-align:left;">
+75 (68.2)
+</td>
+<td style="text-align:left;">
+0.670
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+</tbody>
+</table>
+<pre class="r"><code>write.csv(as.data.frame(print(tab_overall, printToggle = FALSE)), file = file.path(outdir, &quot;Table1_Overall.csv&quot;))
+write.csv(as.data.frame(print(tab_by_t12, printToggle = FALSE)), file = file.path(outdir, &quot;Table1_By_T12.csv&quot;))
+write.csv(as.data.frame(print(tab_by_t24, printToggle = FALSE)), file = file.path(outdir, &quot;Table1_By_T24.csv&quot;))</code></pre>
+</div>
+<div id="save-final-dataset" class="section level3">
+<h3>9. <em>Save final dataset</em></h3>
+<pre class="r"><code># === Sauvegarde du dataset final nettoyé ===
+
+# Chemin de sauvegarde
+saveRDS(data_main, file = file.path(outdir, &quot;data_main_clean_final.rds&quot;))
+write.csv(data_main, file = file.path(outdir, &quot;data_main_clean_final.csv&quot;), row.names = FALSE)</code></pre>
+<p><strong>Mains Output</strong> :</p>
+<ul>
+<li><code>Data_Preparation_&amp;_Descriptive_output/missingness12_ORs.csv</code><br />
+</li>
+<li><code>Data_Preparation_&amp;_Descriptive_output/missingness24_ORs.csv</code><br />
+</li>
+<li><code>Data_Preparation_&amp;_Descriptive_output/Transition_T0_T12.csv</code><br />
+</li>
+<li><code>Data_Preparation_&amp;_Descriptive_output/Transition_T12_T24.csv</code></li>
+<li><code>Data_Preparation_&amp;_Descriptive_output/Transition_diagram.png</code></li>
+<li><code>Data_Preparation_&amp;_Descriptive_output/Table1_Overall.csv</code><br />
+</li>
+<li><code>Data_Preparation_&amp;_Descriptive_output/Table1_By_T12.csv</code><br />
+</li>
+<li><code>Data_Preparation_&amp;_Descriptive_output/Table1_By_T24.csv</code></li>
+<li><code>Data_Preparation_&amp;_Descriptive_output/data_main_clean_final.rds</code></li>
+<li><code>Data_Preparation_&amp;_Descriptive_output/data_main_clean_final.rds</code></li>
+</ul>
+</div>
+</div>
+
+
+
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
